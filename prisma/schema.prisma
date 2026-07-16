@@ -1,0 +1,219 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  fullName  String
+  login     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum EmployeeRole {
+  TEACHER
+  HEAD_TEACHER
+  DIRECTOR
+  ADMIN
+}
+
+enum TermType {
+  QUARTER
+  TRIMESTER
+  SEMESTER
+}
+
+enum AttendanceStatus {
+  PRESENT
+  LATE
+  ABSENT_VALID
+  ABSENT_INVALID
+  SICK
+}
+
+model Employee {
+  id       Int          @id @default(autoincrement())
+  fullName String
+  role     EmployeeRole @default(TEACHER)
+  email    String?      @unique
+  phone    String?
+  isActive Boolean      @default(true)
+
+  homeroomClasses Class[]
+  scheduleSlots   ScheduleSlot[]
+  lessons         Lesson[]
+  substitutions   Substitution[] @relation("SubstituteTeacher")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Student {
+  id         Int       @id @default(autoincrement())
+  fullName   String
+  birthDate  DateTime? @db.Date
+  classId    Int?
+  class      Class?    @relation(fields: [classId], references: [id])
+  enrolledAt DateTime  @default(now())
+  isActive   Boolean   @default(true)
+
+  grades     Grade[]
+  attendance Attendance[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AcademicYear {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  startDate DateTime @db.Date
+  endDate   DateTime @db.Date
+
+  terms   Term[]
+  classes Class[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Term {
+  id             Int          @id @default(autoincrement())
+  academicYearId Int
+  academicYear   AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  type           TermType     @default(QUARTER)
+  number         Int
+  startDate      DateTime     @db.Date
+  endDate        DateTime     @db.Date
+
+  scheduleSlots ScheduleSlot[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([academicYearId, type, number])
+}
+
+model Class {
+  id                Int          @id @default(autoincrement())
+  name              String
+  academicYearId    Int
+  academicYear      AcademicYear @relation(fields: [academicYearId], references: [id])
+  homeroomTeacherId Int?
+  homeroomTeacher   Employee?    @relation(fields: [homeroomTeacherId], references: [id])
+
+  students      Student[]
+  scheduleSlots ScheduleSlot[]
+  lessons       Lesson[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([name, academicYearId])
+}
+
+model Subject {
+  id   Int    @id @default(autoincrement())
+  name String @unique
+
+  scheduleSlots ScheduleSlot[]
+  lessons       Lesson[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ScheduleSlot {
+  id           Int      @id @default(autoincrement())
+  termId       Int
+  term         Term     @relation(fields: [termId], references: [id], onDelete: Cascade)
+  classId      Int
+  class        Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  subjectId    Int
+  subject      Subject  @relation(fields: [subjectId], references: [id])
+  teacherId    Int
+  teacher      Employee @relation(fields: [teacherId], references: [id])
+  dayOfWeek    Int
+  lessonNumber Int
+  room         String?
+
+  substitutions Substitution[]
+  lessons       Lesson[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([termId, classId, dayOfWeek, lessonNumber])
+}
+
+model Substitution {
+  id                  Int          @id @default(autoincrement())
+  scheduleSlotId      Int
+  scheduleSlot        ScheduleSlot @relation(fields: [scheduleSlotId], references: [id], onDelete: Cascade)
+  date                DateTime     @db.Date
+  substituteTeacherId Int
+  substituteTeacher   Employee     @relation("SubstituteTeacher", fields: [substituteTeacherId], references: [id])
+  reason              String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([scheduleSlotId, date])
+}
+
+model Lesson {
+  id             Int           @id @default(autoincrement())
+  date           DateTime      @db.Date
+  classId        Int
+  class          Class         @relation(fields: [classId], references: [id], onDelete: Cascade)
+  subjectId      Int
+  subject        Subject       @relation(fields: [subjectId], references: [id])
+  teacherId      Int
+  teacher        Employee      @relation(fields: [teacherId], references: [id])
+  scheduleSlotId Int?
+  scheduleSlot   ScheduleSlot? @relation(fields: [scheduleSlotId], references: [id])
+  topic          String?
+  homework       String?
+
+  grades     Grade[]
+  attendance Attendance[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([classId, subjectId, date])
+}
+
+model Grade {
+  id        Int     @id @default(autoincrement())
+  lessonId  Int
+  lesson    Lesson  @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  studentId Int
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  value     Int
+  comment   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([lessonId, studentId])
+}
+
+model Attendance {
+  id        Int              @id @default(autoincrement())
+  lessonId  Int
+  lesson    Lesson           @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  studentId Int
+  student   Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  status    AttendanceStatus
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([lessonId, studentId])
+}
