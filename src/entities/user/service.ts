@@ -12,6 +12,8 @@ export function listUsers(limit = 10) {
 			employeeId: true,
 			studentId: true,
 			createdAt: true,
+			employee: { select: { fullName: true, role: true } },
+			student: { select: { fullName: true } },
 		},
 	});
 }

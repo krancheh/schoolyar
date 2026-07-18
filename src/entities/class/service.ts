@@ -16,6 +16,24 @@ export function listClasses(filters: { academicYearId?: number } = {}) {
 	});
 }
 
+// Класс с руководителем, годом и списком активных учеников («Мой класс»).
+export async function getClass(classId: number) {
+	const cls = await prisma.class.findUnique({
+		where: { id: classId },
+		include: {
+			academicYear: { select: { id: true, name: true } },
+			homeroomTeacher: { select: { id: true, fullName: true } },
+			students: {
+				where: { isActive: true },
+				orderBy: { fullName: "asc" },
+				select: { id: true, fullName: true, birthDate: true },
+			},
+		},
+	});
+	if (!cls) throw new ServiceError(`Class ${classId} not found`, 404);
+	return cls;
+}
+
 export type CreateClassInput = {
 	name?: string;
 	academicYearId?: number;

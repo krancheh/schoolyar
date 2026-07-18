@@ -1,14 +1,7 @@
 import { redirect } from "next/navigation";
-import { EmployeeRole } from "@prisma/client";
 import { MANAGER_ROLES, getAuthUser } from "@shared/lib/auth";
+import { EMPLOYEE_ROLE_LABELS } from "@shared/lib/labels";
 import { AppLayout } from "@features/navigation/AppLayout";
-
-const ROLE_LABELS: Record<EmployeeRole, string> = {
-	TEACHER: "Учитель",
-	HEAD_TEACHER: "Завуч",
-	DIRECTOR: "Директор",
-	ADMIN: "Администратор",
-};
 
 export default async function MainLayout({
 	children,
@@ -19,7 +12,7 @@ export default async function MainLayout({
 	const isEmployee = !!user.employee;
 	const isManager = isEmployee && MANAGER_ROLES.includes(user.employee!.role);
 	const roleLabel = user.employee
-		? ROLE_LABELS[user.employee.role]
+		? EMPLOYEE_ROLE_LABELS[user.employee.role]
 		: user.student
 			? "Ученик"
 			: "Пользователь";
