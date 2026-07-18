@@ -2,8 +2,12 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@shared/lib/db";
 import { jsonError, parseBody, parseDate, parseId, isoDayOfWeek } from "@shared/lib/api";
+import { requireAuth, requireManager } from "@shared/lib/auth";
 
 export async function GET(request: Request) {
+	const auth = await requireAuth();
+	if (auth instanceof NextResponse) return auth;
+
 	const { searchParams } = new URL(request.url);
 	const from = parseDate(searchParams.get("from"));
 	const to = parseDate(searchParams.get("to"));
@@ -40,6 +44,9 @@ type CreateSubstitutionBody = {
 };
 
 export async function POST(request: Request) {
+	const auth = await requireManager();
+	if (auth instanceof NextResponse) return auth;
+
 	const body = await parseBody<CreateSubstitutionBody>(request);
 
 	if (!body?.scheduleSlotId || !body.substituteTeacherId) {

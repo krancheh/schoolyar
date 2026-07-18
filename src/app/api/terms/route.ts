@@ -2,8 +2,12 @@ import { NextResponse } from "next/server";
 import { Prisma, TermType } from "@prisma/client";
 import { prisma } from "@shared/lib/db";
 import { jsonError, parseBody, parseDate, parseId } from "@shared/lib/api";
+import { requireAuth, requireManager } from "@shared/lib/auth";
 
 export async function GET(request: Request) {
+	const auth = await requireAuth();
+	if (auth instanceof NextResponse) return auth;
+
 	const { searchParams } = new URL(request.url);
 	const academicYearId = parseId(searchParams.get("academicYearId"));
 
@@ -25,6 +29,9 @@ type CreateTermBody = {
 };
 
 export async function POST(request: Request) {
+	const auth = await requireManager();
+	if (auth instanceof NextResponse) return auth;
+
 	const body = await parseBody<CreateTermBody>(request);
 
 	if (!body?.academicYearId) return jsonError("academicYearId is required");

@@ -2,8 +2,12 @@ import { NextResponse } from "next/server";
 import { EmployeeRole, Prisma } from "@prisma/client";
 import { prisma } from "@shared/lib/db";
 import { jsonError, parseBody } from "@shared/lib/api";
+import { requireAuth, requireManager } from "@shared/lib/auth";
 
 export async function GET() {
+	const auth = await requireAuth();
+	if (auth instanceof NextResponse) return auth;
+
 	const employees = await prisma.employee.findMany({
 		orderBy: { fullName: "asc" },
 	});
@@ -19,6 +23,9 @@ type CreateEmployeeBody = {
 };
 
 export async function POST(request: Request) {
+	const auth = await requireManager();
+	if (auth instanceof NextResponse) return auth;
+
 	const body = await parseBody<CreateEmployeeBody>(request);
 
 	if (!body?.fullName?.trim()) {

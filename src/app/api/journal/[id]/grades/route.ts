@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@shared/lib/db";
 import { jsonError, parseBody } from "@shared/lib/api";
+import { requireEmployee } from "@shared/lib/auth";
 
 type GradeInput = {
 	studentId?: number;
@@ -13,6 +14,9 @@ export async function PUT(
 	request: Request,
 	ctx: RouteContext<"/api/journal/[id]/grades">
 ) {
+	const auth = await requireEmployee();
+	if (auth instanceof NextResponse) return auth;
+
 	const { id } = await ctx.params;
 	const lessonId = Number(id);
 	if (!Number.isInteger(lessonId)) return jsonError("Invalid lesson id");

@@ -2,8 +2,12 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@shared/lib/db";
 import { jsonError, parseBody, parseId } from "@shared/lib/api";
+import { requireAuth, requireManager } from "@shared/lib/auth";
 
 export async function GET(request: Request) {
+	const auth = await requireAuth();
+	if (auth instanceof NextResponse) return auth;
+
 	const { searchParams } = new URL(request.url);
 	const classId = parseId(searchParams.get("classId"));
 	const termId = parseId(searchParams.get("termId"));
@@ -38,6 +42,9 @@ type CreateSlotBody = {
 };
 
 export async function POST(request: Request) {
+	const auth = await requireManager();
+	if (auth instanceof NextResponse) return auth;
+
 	const body = await parseBody<CreateSlotBody>(request);
 
 	if (

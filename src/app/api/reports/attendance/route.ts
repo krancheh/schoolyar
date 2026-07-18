@@ -2,9 +2,13 @@ import { NextResponse } from "next/server";
 import { AttendanceStatus } from "@prisma/client";
 import { prisma } from "@shared/lib/db";
 import { jsonError, parseDate, parseId } from "@shared/lib/api";
+import { requireEmployee } from "@shared/lib/auth";
 
 // Отчёт по посещаемости класса за период.
 export async function GET(request: Request) {
+	const auth = await requireEmployee();
+	if (auth instanceof NextResponse) return auth;
+
 	const { searchParams } = new URL(request.url);
 	const classId = parseId(searchParams.get("classId"));
 	const from = parseDate(searchParams.get("from"));

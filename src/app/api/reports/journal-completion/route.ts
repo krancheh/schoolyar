@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@shared/lib/db";
 import { eachDay, isoDayOfWeek, jsonError, parseId } from "@shared/lib/api";
+import { requireEmployee } from "@shared/lib/auth";
 
 // Отчёт по заполнению журнала: сколько уроков по расписанию должно было
 // пройти за период и сколько из них записано в журнал с темой и д/з.
 export async function GET(request: Request) {
+	const auth = await requireEmployee();
+	if (auth instanceof NextResponse) return auth;
+
 	const { searchParams } = new URL(request.url);
 	const termId = parseId(searchParams.get("termId"));
 	const classId = parseId(searchParams.get("classId"));

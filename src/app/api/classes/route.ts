@@ -2,8 +2,12 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@shared/lib/db";
 import { jsonError, parseBody, parseId } from "@shared/lib/api";
+import { requireAuth, requireManager } from "@shared/lib/auth";
 
 export async function GET(request: Request) {
+	const auth = await requireAuth();
+	if (auth instanceof NextResponse) return auth;
+
 	const { searchParams } = new URL(request.url);
 	const academicYearId = parseId(searchParams.get("academicYearId"));
 
@@ -27,6 +31,9 @@ type CreateClassBody = {
 };
 
 export async function POST(request: Request) {
+	const auth = await requireManager();
+	if (auth instanceof NextResponse) return auth;
+
 	const body = await parseBody<CreateClassBody>(request);
 
 	if (!body?.name?.trim()) return jsonError("name is required");

@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@shared/lib/db";
 import { jsonError, parseBody, parseDate, parseId } from "@shared/lib/api";
+import { requireAuth, requireEmployee } from "@shared/lib/auth";
 
 // Журнал: дата, тема, д/з, средний балл за урок.
 export async function GET(request: Request) {
+	const auth = await requireAuth();
+	if (auth instanceof NextResponse) return auth;
+
 	const { searchParams } = new URL(request.url);
 	const classId = parseId(searchParams.get("classId"));
 	const subjectId = parseId(searchParams.get("subjectId"));
@@ -54,6 +58,9 @@ type CreateLessonBody = {
 };
 
 export async function POST(request: Request) {
+	const auth = await requireEmployee();
+	if (auth instanceof NextResponse) return auth;
+
 	const body = await parseBody<CreateLessonBody>(request);
 
 	if (!body?.classId || !body.subjectId || !body.teacherId) {
