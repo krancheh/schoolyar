@@ -98,8 +98,8 @@ export function RegisterForm({ bootstrap, isManager }: RegisterFormProps) {
 						)}
 						{!canRegister && (
 							<Alert color="yellow" variant="light">
-								Учётные записи создаёт администрация школы. Если у вас нет
-								учётной записи — обратитесь к администратору.
+								Учётные записи создаёт администрация школы. Если у вас нет учётной
+								записи — обратитесь к администратору.
 							</Alert>
 						)}
 

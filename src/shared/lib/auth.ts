@@ -84,7 +84,9 @@ export async function getAuthUser(): Promise<AuthUser | null> {
 			user: {
 				include: {
 					employee: { select: { id: true, fullName: true, role: true, isActive: true } },
-					student: { select: { id: true, fullName: true, classId: true, isActive: true } },
+					student: {
+						select: { id: true, fullName: true, classId: true, isActive: true },
+					},
 				},
 			},
 		},
