@@ -1,11 +1,8 @@
 import { AppShell, AppShellHeader, Burger, Text } from "@mantine/core";
-import { prisma } from "@shared/lib/db";
+import { listUsers } from "@entities/user/service";
 
 export default async function Home() {
-	const users = await prisma.user.findMany({
-		take: 10,
-		orderBy: { createdAt: "desc" },
-	});
+	const users = await listUsers();
 
 	return (
 		<AppShell>

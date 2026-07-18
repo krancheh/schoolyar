@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@shared/lib/db";
-import { jsonError, parseBody } from "@shared/lib/api";
+import { jsonError, parseBody, serviceErrorResponse } from "@shared/lib/api";
 import { requireAuth, requireEmployee } from "@shared/lib/auth";
+import {
+	UpdateLessonInput,
+	getLesson,
+	updateLesson,
+} from "@entities/journal/service";
 
 export async function GET(
 	_request: Request,
@@ -14,39 +18,12 @@ export async function GET(
 	const lessonId = Number(id);
 	if (!Number.isInteger(lessonId)) return jsonError("Invalid lesson id");
 
-	const lesson = await prisma.lesson.findUnique({
-		where: { id: lessonId },
-		include: {
-			class: { select: { id: true, name: true } },
-			subject: { select: { id: true, name: true } },
-			teacher: { select: { id: true, fullName: true } },
-			grades: {
-				include: { student: { select: { id: true, fullName: true } } },
-			},
-			attendance: {
-				include: { student: { select: { id: true, fullName: true } } },
-			},
-		},
-	});
-
-	if (!lesson) return jsonError("Lesson not found", 404);
-
-	const averageGrade =
-		lesson.grades.length > 0
-			? Math.round(
-					(lesson.grades.reduce((sum, grade) => sum + grade.value, 0) /
-						lesson.grades.length) *
-						100
-				) / 100
-			: null;
-
-	return NextResponse.json({ lesson: { ...lesson, averageGrade } });
+	try {
+		return NextResponse.json({ lesson: await getLesson(lessonId) });
+	} catch (error) {
+		return serviceErrorResponse(error);
+	}
 }
-
-type UpdateLessonBody = {
-	topic?: string | null;
-	homework?: string | null;
-};
 
 export async function PATCH(
 	request: Request,
@@ -59,21 +36,12 @@ export async function PATCH(
 	const lessonId = Number(id);
 	if (!Number.isInteger(lessonId)) return jsonError("Invalid lesson id");
 
-	const body = await parseBody<UpdateLessonBody>(request);
-	if (!body || (body.topic === undefined && body.homework === undefined)) {
-		return jsonError("Nothing to update: provide topic and/or homework");
+	const body = await parseBody<UpdateLessonInput>(request);
+
+	try {
+		const lesson = await updateLesson(lessonId, body ?? {});
+		return NextResponse.json({ lesson });
+	} catch (error) {
+		return serviceErrorResponse(error);
 	}
-
-	const existing = await prisma.lesson.findUnique({ where: { id: lessonId } });
-	if (!existing) return jsonError("Lesson not found", 404);
-
-	const lesson = await prisma.lesson.update({
-		where: { id: lessonId },
-		data: {
-			...(body.topic !== undefined ? { topic: body.topic } : {}),
-			...(body.homework !== undefined ? { homework: body.homework } : {}),
-		},
-	});
-
-	return NextResponse.json({ lesson });
 }

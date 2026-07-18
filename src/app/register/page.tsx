@@ -15,8 +15,7 @@ export default async function RegisterPage() {
 		prisma.user.count({ where: { employee: { role: { in: MANAGER_ROLES } } } }),
 	]);
 
-	const isManager =
-		!!user?.employee && MANAGER_ROLES.includes(user.employee.role);
+	const isManager = !!user?.employee && MANAGER_ROLES.includes(user.employee.role);
 
 	return <RegisterForm bootstrap={adminCount === 0} isManager={isManager} />;
 }

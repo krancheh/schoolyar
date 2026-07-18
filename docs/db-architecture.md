@@ -20,6 +20,27 @@
 | 10 | Четверти, семестры | `Term` |
 | 11 | Предметы | `Subject` |
 
+## Слои
+
+Бизнес-логика вынесена в сервисный слой (`src/entities/*/service.ts`):
+Prisma-запросы, доменная валидация и маппинг ошибок БД. При ошибке сервис
+кидает `ServiceError(message, status)` из `@shared/lib/api`.
+
+Потребители сервисов:
+
+- **Серверные компоненты (SSR)** и Server Actions зовут сервисы напрямую —
+  без HTTP-запросов к собственному API (антипаттерн в Next.js: лишний хоп,
+  ручной проброс cookie, нет типизации). Пример: `src/app/page.tsx`.
+- **REST-роуты** (`src/app/api/**`) — тонкий фасад над сервисами для внешних
+  клиентов и клиентских форм: auth-guard, разбор HTTP-входа,
+  `ServiceError → jsonError` через `serviceErrorResponse`.
+
+```
+страницы (RSC), server actions ─┐
+                                ├─> src/entities/*/service.ts ──> Prisma ──> PostgreSQL
+клиенты (fetch) ─> src/app/api ─┘
+```
+
 ## Сущности
 
 ### User — учётная запись (функция 1)

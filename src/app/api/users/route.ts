@@ -1,26 +1,13 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@shared/lib/db";
 import { requireManager } from "@shared/lib/auth";
+import { listUsers } from "@entities/user/service";
 
 export async function GET() {
 	const auth = await requireManager();
 	if (auth instanceof NextResponse) return auth;
 
 	try {
-		const users = await prisma.user.findMany({
-			take: 10,
-			orderBy: { createdAt: "desc" },
-			select: {
-				id: true,
-				fullName: true,
-				login: true,
-				employeeId: true,
-				studentId: true,
-				createdAt: true,
-			},
-		});
-
-		return NextResponse.json({ users });
+		return NextResponse.json({ users: await listUsers() });
 	} catch (error) {
 		console.error("Failed to fetch users", error);
 
