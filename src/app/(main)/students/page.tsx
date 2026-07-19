@@ -18,11 +18,7 @@ import { MANAGER_ROLES, getAuthUser } from "@shared/lib/auth";
 import { formatDate, formatDateInput } from "@shared/lib/format";
 import { listStudents } from "@entities/student/service";
 import { listClasses } from "@entities/class/service";
-import {
-	CreateEntityButton,
-	EditEntityButton,
-	EntityField,
-} from "@features/crud/EntityForm";
+import { CreateEntityButton, EditEntityButton, EntityField } from "@features/crud/EntityForm";
 
 export const metadata: Metadata = { title: "Ученики — Школьный портал" };
 

@@ -1,6 +1,17 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { Stack, Table, TableScrollContainer, TableTbody, TableTd, TableTh, TableThead, TableTr, Text, Title } from "@mantine/core";
+import {
+	Stack,
+	Table,
+	TableScrollContainer,
+	TableTbody,
+	TableTd,
+	TableTh,
+	TableThead,
+	TableTr,
+	Text,
+	Title,
+} from "@mantine/core";
 import { getAuthUser } from "@shared/lib/auth";
 import { formatDate } from "@shared/lib/format";
 import { getClass } from "@entities/class/service";

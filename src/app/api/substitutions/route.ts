@@ -1,10 +1,5 @@
 import { NextResponse } from "next/server";
-import {
-	parseBody,
-	parseDate,
-	parseId,
-	serviceErrorResponse,
-} from "@shared/lib/api";
+import { parseBody, parseDate, parseId, serviceErrorResponse } from "@shared/lib/api";
 import { requireAuth, requireManager } from "@shared/lib/auth";
 import {
 	CreateSubstitutionInput,

@@ -15,17 +15,11 @@ import {
 } from "@mantine/core";
 import { MANAGER_ROLES, getAuthUser } from "@shared/lib/auth";
 import { listSubjects } from "@entities/subject/service";
-import {
-	CreateEntityButton,
-	EditEntityButton,
-	EntityField,
-} from "@features/crud/EntityForm";
+import { CreateEntityButton, EditEntityButton, EntityField } from "@features/crud/EntityForm";
 
 export const metadata: Metadata = { title: "Предметы — Школьный портал" };
 
-const subjectFields: EntityField[] = [
-	{ name: "name", label: "Название", required: true },
-];
+const subjectFields: EntityField[] = [{ name: "name", label: "Название", required: true }];
 
 export default async function SubjectsPage() {
 	const user = await getAuthUser();

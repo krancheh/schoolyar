@@ -17,18 +17,13 @@ import { DAY_NAMES, formatDate, formatDateInput } from "@shared/lib/format";
 import { listSubstitutions } from "@entities/substitution/service";
 import { listScheduleSlots } from "@entities/schedule/service";
 import { listEmployees } from "@entities/employee/service";
-import {
-	CreateEntityButton,
-	EditEntityButton,
-	EntityField,
-} from "@features/crud/EntityForm";
+import { CreateEntityButton, EditEntityButton, EntityField } from "@features/crud/EntityForm";
 
 export const metadata: Metadata = { title: "Замены — Школьный портал" };
 
 export default async function SubstitutionsPage() {
 	const user = await getAuthUser();
-	const isManager =
-		!!user?.employee && MANAGER_ROLES.includes(user.employee.role);
+	const isManager = !!user?.employee && MANAGER_ROLES.includes(user.employee.role);
 
 	const [substitutions, slots, employees] = await Promise.all([
 		listSubstitutions(),

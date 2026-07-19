@@ -4,10 +4,7 @@ import { requireEmployee } from "@shared/lib/auth";
 import { GradeInput, setGrades } from "@entities/journal/service";
 
 // Выставление оценок за урок (upsert по паре урок+ученик).
-export async function PUT(
-	request: Request,
-	ctx: RouteContext<"/api/journal/[id]/grades">
-) {
+export async function PUT(request: Request, ctx: RouteContext<"/api/journal/[id]/grades">) {
 	const auth = await requireEmployee();
 	if (auth instanceof NextResponse) return auth;
 

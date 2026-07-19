@@ -17,11 +17,7 @@ import { MANAGER_ROLES, getAuthUser } from "@shared/lib/auth";
 import { formatDate, formatDateInput } from "@shared/lib/format";
 import { termLabel } from "@shared/lib/labels";
 import { listAcademicYears } from "@entities/academic-year/service";
-import {
-	CreateEntityButton,
-	EditEntityButton,
-	EntityField,
-} from "@features/crud/EntityForm";
+import { CreateEntityButton, EditEntityButton, EntityField } from "@features/crud/EntityForm";
 
 export const metadata: Metadata = {
 	title: "Периоды обучения — Школьный портал",
@@ -101,7 +97,8 @@ export default async function AcademicYearsPage() {
 												{year.terms.map((term) => (
 													<Group gap="xs" key={term.id}>
 														<Text size="sm">
-															{termLabel(term)}: {formatDate(term.startDate)} —{" "}
+															{termLabel(term)}:{" "}
+															{formatDate(term.startDate)} —{" "}
 															{formatDate(term.endDate)}
 														</Text>
 														{isManager && (
@@ -112,8 +109,12 @@ export default async function AcademicYearsPage() {
 																initial={{
 																	type: term.type,
 																	number: term.number,
-																	startDate: formatDateInput(term.startDate),
-																	endDate: formatDateInput(term.endDate),
+																	startDate: formatDateInput(
+																		term.startDate,
+																	),
+																	endDate: formatDateInput(
+																		term.endDate,
+																	),
 																}}
 															/>
 														)}
@@ -139,7 +140,12 @@ export default async function AcademicYearsPage() {
 													title={`Новый период — ${year.name}`}
 													label="+ период"
 													fields={[
-														{ name: "academicYearId", label: "", type: "hidden", numeric: true },
+														{
+															name: "academicYearId",
+															label: "",
+															type: "hidden",
+															numeric: true,
+														},
 														...termFields,
 													]}
 													url="/api/terms"

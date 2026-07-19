@@ -24,20 +24,12 @@ import {
 } from "@shared/lib/format";
 import { termLabel } from "@shared/lib/labels";
 import { LinkButton } from "@shared/ui/LinkButton";
-import {
-	DayScheduleEntry,
-	getDaySchedule,
-	listScheduleSlots,
-} from "@entities/schedule/service";
+import { DayScheduleEntry, getDaySchedule, listScheduleSlots } from "@entities/schedule/service";
 import { listTerms } from "@entities/term/service";
 import { listClasses } from "@entities/class/service";
 import { listSubjects } from "@entities/subject/service";
 import { listEmployees } from "@entities/employee/service";
-import {
-	CreateEntityButton,
-	EditEntityButton,
-	EntityField,
-} from "@features/crud/EntityForm";
+import { CreateEntityButton, EditEntityButton, EntityField } from "@features/crud/EntityForm";
 
 export const metadata: Metadata = { title: "Расписание — Школьный портал" };
 
@@ -51,9 +43,7 @@ function todayISO(): string {
 
 type SearchParams = { date?: string; view?: string };
 
-export default async function SchedulePage(props: {
-	searchParams: Promise<SearchParams>;
-}) {
+export default async function SchedulePage(props: { searchParams: Promise<SearchParams> }) {
 	const [user, params] = await Promise.all([getAuthUser(), props.searchParams]);
 	const employee = user?.employee ?? null;
 	const isManager = !!employee && MANAGER_ROLES.includes(employee.role);
@@ -78,13 +68,13 @@ export default async function SchedulePage(props: {
 	const studentClassId = user?.student?.classId ?? null;
 	const { inTerm, entries } = await getDaySchedule(
 		date,
-		user?.student ? { classId: studentClassId ?? -1 } : {}
+		user?.student ? { classId: studentClassId ?? -1 } : {},
 	);
 	const myEntries = employee
 		? entries.filter(
 				(entry) =>
 					entry.slot.teacherId === employee.id ||
-					entry.substitution?.substituteTeacher.id === employee.id
+					entry.substitution?.substituteTeacher.id === employee.id,
 			)
 		: [];
 
@@ -152,7 +142,13 @@ export default async function SchedulePage(props: {
 				label,
 			})),
 		},
-		{ name: "lessonNumber", label: "Номер урока", type: "number", required: true, numeric: true },
+		{
+			name: "lessonNumber",
+			label: "Номер урока",
+			type: "number",
+			required: true,
+			numeric: true,
+		},
 		{ name: "room", label: "Кабинет", nullable: true },
 	];
 
@@ -274,7 +270,8 @@ export default async function SchedulePage(props: {
 										<TableTd>
 											{givenAway ? (
 												<Text size="sm">
-													Замена: {entry.substitution!.substituteTeacher.fullName}
+													Замена:{" "}
+													{entry.substitution!.substituteTeacher.fullName}
 													{entry.substitution!.reason
 														? ` (${entry.substitution!.reason})`
 														: ""}
@@ -335,11 +332,15 @@ export default async function SchedulePage(props: {
 									<TableTbody>
 										{group.items.map((entry) => (
 											<TableTr key={entry.slot.id}>
-												<TableTd ta="center">{entry.slot.lessonNumber}</TableTd>
+												<TableTd ta="center">
+													{entry.slot.lessonNumber}
+												</TableTd>
 												<TableTd>{entry.slot.subject.name}</TableTd>
 												<TableTd>{teacherCell(entry)}</TableTd>
 												<TableTd>{entry.slot.room ?? "—"}</TableTd>
-												{isManager && <TableTd>{editButton(entry)}</TableTd>}
+												{isManager && (
+													<TableTd>{editButton(entry)}</TableTd>
+												)}
 											</TableTr>
 										))}
 									</TableTbody>
@@ -365,11 +366,7 @@ export default async function SchedulePage(props: {
 			</Group>
 
 			<Group gap="xs" wrap="wrap">
-				<LinkButton
-					href={hrefFor(addDays(date, -1))}
-					variant="default"
-					size="compact-sm"
-				>
+				<LinkButton href={hrefFor(addDays(date, -1))} variant="default" size="compact-sm">
 					←
 				</LinkButton>
 				{weekDays.map((day) => {
@@ -385,11 +382,7 @@ export default async function SchedulePage(props: {
 						</LinkButton>
 					);
 				})}
-				<LinkButton
-					href={hrefFor(addDays(date, 1))}
-					variant="default"
-					size="compact-sm"
-				>
+				<LinkButton href={hrefFor(addDays(date, 1))} variant="default" size="compact-sm">
 					→
 				</LinkButton>
 				{!isToday && (

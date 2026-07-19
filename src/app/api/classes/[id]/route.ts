@@ -3,10 +3,7 @@ import { jsonError, parseBody, serviceErrorResponse } from "@shared/lib/api";
 import { requireManager } from "@shared/lib/auth";
 import { UpdateClassInput, updateClass } from "@entities/class/service";
 
-export async function PATCH(
-	request: Request,
-	ctx: RouteContext<"/api/classes/[id]">
-) {
+export async function PATCH(request: Request, ctx: RouteContext<"/api/classes/[id]">) {
 	const auth = await requireManager();
 	if (auth instanceof NextResponse) return auth;
 

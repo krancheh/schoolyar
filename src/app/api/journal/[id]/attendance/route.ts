@@ -4,10 +4,7 @@ import { requireEmployee } from "@shared/lib/auth";
 import { AttendanceInput, setAttendance } from "@entities/journal/service";
 
 // Отметка посещаемости за урок (upsert по паре урок+ученик).
-export async function PUT(
-	request: Request,
-	ctx: RouteContext<"/api/journal/[id]/attendance">
-) {
+export async function PUT(request: Request, ctx: RouteContext<"/api/journal/[id]/attendance">) {
 	const auth = await requireEmployee();
 	if (auth instanceof NextResponse) return auth;
 

@@ -3,9 +3,7 @@ import { MANAGER_ROLES, getAuthUser } from "@shared/lib/auth";
 import { EMPLOYEE_ROLE_LABELS } from "@shared/lib/labels";
 import { AppLayout } from "@features/navigation/AppLayout";
 
-export default async function MainLayout({
-	children,
-}: Readonly<{ children: React.ReactNode }>) {
+export default async function MainLayout({ children }: Readonly<{ children: React.ReactNode }>) {
 	const user = await getAuthUser();
 	if (!user) redirect("/login");
 

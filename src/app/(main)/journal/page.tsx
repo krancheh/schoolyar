@@ -20,11 +20,7 @@ import { listClasses } from "@entities/class/service";
 import { listSubjects } from "@entities/subject/service";
 import { listEmployees } from "@entities/employee/service";
 import { listScheduleSlots } from "@entities/schedule/service";
-import {
-	CreateEntityButton,
-	EditEntityButton,
-	EntityField,
-} from "@features/crud/EntityForm";
+import { CreateEntityButton, EditEntityButton, EntityField } from "@features/crud/EntityForm";
 
 export const metadata: Metadata = { title: "Журнал — Школьный портал" };
 

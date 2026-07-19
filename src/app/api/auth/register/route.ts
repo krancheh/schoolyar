@@ -2,12 +2,7 @@ import { NextResponse } from "next/server";
 import { EmployeeRole, Prisma } from "@prisma/client";
 import { prisma } from "@shared/lib/db";
 import { jsonError, parseBody } from "@shared/lib/api";
-import {
-	MANAGER_ROLES,
-	createSession,
-	getAuthUser,
-	hashPassword,
-} from "@shared/lib/auth";
+import { MANAGER_ROLES, createSession, getAuthUser, hashPassword } from "@shared/lib/auth";
 
 type RegisterBody = {
 	login?: string;
@@ -46,10 +41,7 @@ export async function POST(request: Request) {
 	if (!bootstrap) {
 		const current = await getAuthUser();
 		if (!current) return jsonError("Authentication required", 401);
-		if (
-			!current.employee ||
-			!MANAGER_ROLES.includes(current.employee.role)
-		) {
+		if (!current.employee || !MANAGER_ROLES.includes(current.employee.role)) {
 			return jsonError("Manager role required", 403);
 		}
 	}
@@ -101,14 +93,8 @@ export async function POST(request: Request) {
 
 		return NextResponse.json({ user, bootstrap }, { status: 201 });
 	} catch (error) {
-		if (
-			error instanceof Prisma.PrismaClientKnownRequestError &&
-			error.code === "P2002"
-		) {
-			return jsonError(
-				"Login is taken or employee/student already has an account",
-				409
-			);
+		if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+			return jsonError("Login is taken or employee/student already has an account", 409);
 		}
 		throw error;
 	}

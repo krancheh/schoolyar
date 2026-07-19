@@ -17,7 +17,7 @@ export async function GET(request: Request) {
 		return NextResponse.json(
 			await journalCompletionReport(termId, {
 				classId: parseId(searchParams.get("classId")) ?? undefined,
-			})
+			}),
 		);
 	} catch (error) {
 		return serviceErrorResponse(error);

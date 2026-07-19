@@ -1,16 +1,7 @@
 import { NextResponse } from "next/server";
-import {
-	parseBody,
-	parseDate,
-	parseId,
-	serviceErrorResponse,
-} from "@shared/lib/api";
+import { parseBody, parseDate, parseId, serviceErrorResponse } from "@shared/lib/api";
 import { requireAuth, requireEmployee } from "@shared/lib/auth";
-import {
-	CreateLessonInput,
-	createLesson,
-	listLessons,
-} from "@entities/journal/service";
+import { CreateLessonInput, createLesson, listLessons } from "@entities/journal/service";
 
 // Журнал: дата, тема, д/з, средний балл за урок.
 export async function GET(request: Request) {

@@ -1,6 +1,18 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { Badge, Stack, Table, TableScrollContainer, TableTbody, TableTd, TableTh, TableThead, TableTr, Text, Title } from "@mantine/core";
+import {
+	Badge,
+	Stack,
+	Table,
+	TableScrollContainer,
+	TableTbody,
+	TableTd,
+	TableTh,
+	TableThead,
+	TableTr,
+	Text,
+	Title,
+} from "@mantine/core";
 import { getAuthUser } from "@shared/lib/auth";
 import { formatDate } from "@shared/lib/format";
 import { termLabel } from "@shared/lib/labels";
@@ -16,16 +28,13 @@ export default async function ReportsPage() {
 	const terms = await listTerms();
 	// Текущий период (сегодня внутри границ), иначе — самый свежий.
 	const now = new Date();
-	const term =
-		terms.find((t) => t.startDate <= now && now <= t.endDate) ?? terms[0];
+	const term = terms.find((t) => t.startDate <= now && now <= t.endDate) ?? terms[0];
 
 	if (!term) {
 		return (
 			<Stack gap="xs">
 				<Title order={2}>Отчёты</Title>
-				<Text c="dimmed">
-					Отчёты появятся, когда будут заведены учебные периоды.
-				</Text>
+				<Text c="dimmed">Отчёты появятся, когда будут заведены учебные периоды.</Text>
 			</Stack>
 		);
 	}
@@ -39,14 +48,11 @@ export default async function ReportsPage() {
 				Заполнение журнала — {termLabel(term)} ({term.academicYear.name})
 			</Title>
 			<Text size="sm" c="dimmed">
-				Учтены уроки по расписанию до {formatDate(report.countedUntil)}.
-				Отчёты по посещаемости и успеваемости строятся по классу — появятся
-				здесь после выбора класса.
+				Учтены уроки по расписанию до {formatDate(report.countedUntil)}. Отчёты по
+				посещаемости и успеваемости строятся по классу — появятся здесь после выбора класса.
 			</Text>
 			{report.rows.length === 0 ? (
-				<Text c="dimmed">
-					В этом периоде нет расписания — считать пока нечего.
-				</Text>
+				<Text c="dimmed">В этом периоде нет расписания — считать пока нечего.</Text>
 			) : (
 				<TableScrollContainer minWidth={760}>
 					<Table striped highlightOnHover withTableBorder>

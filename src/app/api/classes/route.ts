@@ -1,11 +1,7 @@
 import { NextResponse } from "next/server";
 import { parseBody, parseId, serviceErrorResponse } from "@shared/lib/api";
 import { requireAuth, requireManager } from "@shared/lib/auth";
-import {
-	CreateClassInput,
-	createClass,
-	listClasses,
-} from "@entities/class/service";
+import { CreateClassInput, createClass, listClasses } from "@entities/class/service";
 
 export async function GET(request: Request) {
 	const auth = await requireAuth();

@@ -17,11 +17,7 @@ import {
 import { MANAGER_ROLES, getAuthUser } from "@shared/lib/auth";
 import { EMPLOYEE_ROLE_LABELS } from "@shared/lib/labels";
 import { listEmployees } from "@entities/employee/service";
-import {
-	CreateEntityButton,
-	EditEntityButton,
-	EntityField,
-} from "@features/crud/EntityForm";
+import { CreateEntityButton, EditEntityButton, EntityField } from "@features/crud/EntityForm";
 
 export const metadata: Metadata = { title: "Сотрудники — Школьный портал" };
 
@@ -32,9 +28,10 @@ export default async function EmployeesPage() {
 	const isManager = MANAGER_ROLES.includes(user.employee.role);
 	const employees = await listEmployees();
 
-	const roleOptions = Object.entries(EMPLOYEE_ROLE_LABELS).map(
-		([value, label]) => ({ value, label })
-	);
+	const roleOptions = Object.entries(EMPLOYEE_ROLE_LABELS).map(([value, label]) => ({
+		value,
+		label,
+	}));
 	const baseFields: EntityField[] = [
 		{ name: "fullName", label: "ФИО", required: true },
 		{ name: "role", label: "Роль", type: "select", required: true, options: roleOptions },

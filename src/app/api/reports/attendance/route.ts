@@ -1,10 +1,5 @@
 import { NextResponse } from "next/server";
-import {
-	jsonError,
-	parseDate,
-	parseId,
-	serviceErrorResponse,
-} from "@shared/lib/api";
+import { jsonError, parseDate, parseId, serviceErrorResponse } from "@shared/lib/api";
 import { requireEmployee } from "@shared/lib/auth";
 import { attendanceReport } from "@entities/report/service";
 
@@ -22,7 +17,7 @@ export async function GET(request: Request) {
 			await attendanceReport(classId, {
 				from: parseDate(searchParams.get("from")) ?? undefined,
 				to: parseDate(searchParams.get("to")) ?? undefined,
-			})
+			}),
 		);
 	} catch (error) {
 		return serviceErrorResponse(error);
