@@ -12,6 +12,7 @@ import {
 	Stack,
 	TextInput,
 } from "@mantine/core";
+import { DatePickerInput, TimePicker } from "@mantine/dates";
 import { useDisclosure } from "@mantine/hooks";
 
 export type FieldOption = { value: string; label: string };
@@ -176,6 +177,38 @@ export function EntityFormModal({
 									required={field.required}
 									clearable={!field.required}
 									searchable
+								/>
+							);
+						}
+						// Явные форматы вместо нативных инпутов, зависящих от локали браузера:
+						// даты — ДД.ММ.ГГГГ (значение остаётся YYYY-MM-DD), время — 24 часа.
+						if (field.type === "date") {
+							return (
+								<DatePickerInput
+									key={field.name}
+									label={field.label}
+									description={field.description}
+									valueFormat="DD.MM.YYYY"
+									placeholder="ДД.ММ.ГГГГ"
+									value={String(values[field.name] ?? "") || null}
+									onChange={(value) => set(field.name, value ?? "")}
+									required={field.required}
+									clearable={!field.required}
+								/>
+							);
+						}
+						if (field.type === "time") {
+							return (
+								<TimePicker
+									key={field.name}
+									label={field.label}
+									description={field.description}
+									format="24h"
+									withDropdown
+									value={String(values[field.name] ?? "")}
+									onChange={(value) => set(field.name, value)}
+									required={field.required}
+									clearable={!field.required}
 								/>
 							);
 						}
