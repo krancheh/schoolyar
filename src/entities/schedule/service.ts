@@ -1,6 +1,13 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@shared/lib/db";
-import { ServiceError } from "@shared/lib/api";
+import { ServiceError, isoDayOfWeek } from "@shared/lib/api";
+
+const slotInclude = {
+	class: { select: { id: true, name: true } },
+	subject: { select: { id: true, name: true } },
+	teacher: { select: { id: true, fullName: true } },
+	term: { select: { id: true, type: true, number: true } },
+} satisfies Prisma.ScheduleSlotInclude;
 
 export function listScheduleSlots(
 	filters: { classId?: number; termId?: number; teacherId?: number } = {}
@@ -11,14 +18,76 @@ export function listScheduleSlots(
 			...(filters.termId ? { termId: filters.termId } : {}),
 			...(filters.teacherId ? { teacherId: filters.teacherId } : {}),
 		},
-		include: {
-			class: { select: { id: true, name: true } },
-			subject: { select: { id: true, name: true } },
-			teacher: { select: { id: true, fullName: true } },
-			term: { select: { id: true, type: true, number: true } },
-		},
+		include: slotInclude,
 		orderBy: [{ dayOfWeek: "asc" }, { lessonNumber: "asc" }],
 	});
+}
+
+type DayScheduleSlot = Prisma.ScheduleSlotGetPayload<{
+	include: typeof slotInclude;
+}>;
+
+export type DayScheduleEntry = {
+	slot: DayScheduleSlot;
+	substitution: {
+		id: number;
+		substituteTeacher: { id: number; fullName: string };
+		reason: string | null;
+	} | null;
+};
+
+// Фактическое расписание на конкретную дату: слоты активных на эту дату
+// периодов с наложенными заменами этого дня.
+export async function getDaySchedule(
+	date: Date,
+	filters: { classId?: number } = {}
+): Promise<{ inTerm: boolean; entries: DayScheduleEntry[] }> {
+	const terms = await prisma.term.findMany({
+		where: { startDate: { lte: date }, endDate: { gte: date } },
+		select: { id: true },
+	});
+	if (terms.length === 0) return { inTerm: false, entries: [] };
+
+	const slots = await prisma.scheduleSlot.findMany({
+		where: {
+			termId: { in: terms.map((term) => term.id) },
+			dayOfWeek: isoDayOfWeek(date),
+			...(filters.classId ? { classId: filters.classId } : {}),
+		},
+		include: slotInclude,
+		orderBy: [{ class: { name: "asc" } }, { lessonNumber: "asc" }],
+	});
+	if (slots.length === 0) return { inTerm: true, entries: [] };
+
+	const substitutions = await prisma.substitution.findMany({
+		where: { date, scheduleSlotId: { in: slots.map((slot) => slot.id) } },
+		select: {
+			id: true,
+			scheduleSlotId: true,
+			reason: true,
+			substituteTeacher: { select: { id: true, fullName: true } },
+		},
+	});
+	const bySlotId = new Map(
+		substitutions.map((substitution) => [substitution.scheduleSlotId, substitution])
+	);
+
+	return {
+		inTerm: true,
+		entries: slots.map((slot) => {
+			const substitution = bySlotId.get(slot.id);
+			return {
+				slot,
+				substitution: substitution
+					? {
+							id: substitution.id,
+							substituteTeacher: substitution.substituteTeacher,
+							reason: substitution.reason,
+						}
+					: null,
+			};
+		}),
+	};
 }
 
 export type CreateScheduleSlotInput = {
