@@ -40,6 +40,54 @@ export type CreateClassInput = {
 	homeroomTeacherId?: number;
 };
 
+export type UpdateClassInput = {
+	name?: string;
+	homeroomTeacherId?: number | null;
+};
+
+export async function updateClass(id: number, input: UpdateClassInput) {
+	const existing = await prisma.class.findUnique({ where: { id } });
+	if (!existing) throw new ServiceError("Class not found", 404);
+
+	if (input.name !== undefined && !input.name.trim()) {
+		throw new ServiceError("name cannot be empty");
+	}
+	if (input.homeroomTeacherId != null) {
+		const teacher = await prisma.employee.findUnique({
+			where: { id: input.homeroomTeacherId },
+		});
+		if (!teacher) {
+			throw new ServiceError(
+				`Employee ${input.homeroomTeacherId} not found`,
+				404
+			);
+		}
+	}
+
+	try {
+		return await prisma.class.update({
+			where: { id },
+			data: {
+				...(input.name !== undefined ? { name: input.name.trim() } : {}),
+				...(input.homeroomTeacherId !== undefined
+					? { homeroomTeacherId: input.homeroomTeacherId }
+					: {}),
+			},
+		});
+	} catch (error) {
+		if (
+			error instanceof Prisma.PrismaClientKnownRequestError &&
+			error.code === "P2002"
+		) {
+			throw new ServiceError(
+				"Class with this name already exists in this academic year",
+				409
+			);
+		}
+		throw error;
+	}
+}
+
 export async function createClass(input: CreateClassInput) {
 	if (!input.name?.trim()) throw new ServiceError("name is required");
 	if (!input.academicYearId) {

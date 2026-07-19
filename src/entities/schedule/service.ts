@@ -31,6 +31,75 @@ export type CreateScheduleSlotInput = {
 	room?: string;
 };
 
+export type UpdateScheduleSlotInput = {
+	termId?: number;
+	classId?: number;
+	subjectId?: number;
+	teacherId?: number;
+	dayOfWeek?: number;
+	lessonNumber?: number;
+	room?: string | null;
+};
+
+export async function updateScheduleSlot(
+	id: number,
+	input: UpdateScheduleSlotInput
+) {
+	const existing = await prisma.scheduleSlot.findUnique({ where: { id } });
+	if (!existing) throw new ServiceError("Schedule slot not found", 404);
+
+	if (
+		input.dayOfWeek !== undefined &&
+		(input.dayOfWeek < 1 || input.dayOfWeek > 7)
+	) {
+		throw new ServiceError(
+			"dayOfWeek must be between 1 (Monday) and 7 (Sunday)"
+		);
+	}
+	if (input.lessonNumber !== undefined && input.lessonNumber < 1) {
+		throw new ServiceError("lessonNumber must be a positive integer");
+	}
+
+	try {
+		return await prisma.scheduleSlot.update({
+			where: { id },
+			data: {
+				...(input.termId !== undefined ? { termId: input.termId } : {}),
+				...(input.classId !== undefined ? { classId: input.classId } : {}),
+				...(input.subjectId !== undefined
+					? { subjectId: input.subjectId }
+					: {}),
+				...(input.teacherId !== undefined
+					? { teacherId: input.teacherId }
+					: {}),
+				...(input.dayOfWeek !== undefined
+					? { dayOfWeek: input.dayOfWeek }
+					: {}),
+				...(input.lessonNumber !== undefined
+					? { lessonNumber: input.lessonNumber }
+					: {}),
+				...(input.room !== undefined ? { room: input.room || null } : {}),
+			},
+		});
+	} catch (error) {
+		if (error instanceof Prisma.PrismaClientKnownRequestError) {
+			if (error.code === "P2002") {
+				throw new ServiceError(
+					"This class already has a lesson at this time in this term",
+					409
+				);
+			}
+			if (error.code === "P2003") {
+				throw new ServiceError(
+					"Related term, class, subject or teacher not found",
+					404
+				);
+			}
+		}
+		throw error;
+	}
+}
+
 export async function createScheduleSlot(input: CreateScheduleSlotInput) {
 	if (
 		!input.termId ||

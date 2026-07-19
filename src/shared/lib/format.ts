@@ -11,6 +11,11 @@ export function formatDate(date: Date | null | undefined): string {
 	return date ? dateFormat.format(date) : "—";
 }
 
+// Значение для <input type="date"> (YYYY-MM-DD, UTC).
+export function formatDateInput(date: Date | null | undefined): string | null {
+	return date ? date.toISOString().slice(0, 10) : null;
+}
+
 // 1 = понедельник … 7 = воскресенье (как ScheduleSlot.dayOfWeek)
 export const DAY_NAMES: Record<number, string> = {
 	1: "Понедельник",

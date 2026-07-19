@@ -35,6 +35,73 @@ export type CreateSubstitutionInput = {
 	reason?: string;
 };
 
+export type UpdateSubstitutionInput = {
+	date?: string | Date;
+	substituteTeacherId?: number;
+	reason?: string | null;
+};
+
+export async function updateSubstitution(
+	id: number,
+	input: UpdateSubstitutionInput
+) {
+	const existing = await prisma.substitution.findUnique({
+		where: { id },
+		include: { scheduleSlot: true },
+	});
+	if (!existing) throw new ServiceError("Substitution not found", 404);
+
+	let date: Date | undefined;
+	if (input.date !== undefined) {
+		const parsed = parseDate(input.date);
+		if (!parsed) {
+			throw new ServiceError("date must be a valid date (YYYY-MM-DD)");
+		}
+		if (isoDayOfWeek(parsed) !== existing.scheduleSlot.dayOfWeek) {
+			throw new ServiceError(
+				`Date does not match the slot's day of week (${existing.scheduleSlot.dayOfWeek})`
+			);
+		}
+		date = parsed;
+	}
+
+	const substituteTeacherId =
+		input.substituteTeacherId ?? existing.substituteTeacherId;
+	if (substituteTeacherId === existing.scheduleSlot.teacherId) {
+		throw new ServiceError(
+			"Substitute teacher is the same as the scheduled teacher"
+		);
+	}
+
+	try {
+		return await prisma.substitution.update({
+			where: { id },
+			data: {
+				...(date ? { date } : {}),
+				...(input.substituteTeacherId !== undefined
+					? { substituteTeacherId: input.substituteTeacherId }
+					: {}),
+				...(input.reason !== undefined
+					? { reason: input.reason || null }
+					: {}),
+			},
+		});
+	} catch (error) {
+		if (error instanceof Prisma.PrismaClientKnownRequestError) {
+			if (error.code === "P2002") {
+				throw new ServiceError(
+					"Substitution for this slot and date already exists",
+					409
+				);
+			}
+			if (error.code === "P2003") {
+				throw new ServiceError("Substitute teacher not found", 404);
+			}
+		}
+		throw error;
+	}
+}
+
 export async function createSubstitution(input: CreateSubstitutionInput) {
 	if (!input.scheduleSlotId || !input.substituteTeacherId) {
 		throw new ServiceError(
