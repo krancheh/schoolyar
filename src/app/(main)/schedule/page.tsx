@@ -29,6 +29,7 @@ import { listTerms } from "@entities/term/service";
 import { listClasses } from "@entities/class/service";
 import { listSubjects } from "@entities/subject/service";
 import { listEmployees } from "@entities/employee/service";
+import { listBells } from "@entities/bell-schedule/service";
 import { CreateEntityButton, EditEntityButton, EntityField } from "@features/crud/EntityForm";
 
 export const metadata: Metadata = { title: "Расписание — Школьный портал" };
@@ -66,9 +67,12 @@ export default async function SchedulePage(props: { searchParams: Promise<Search
 	}
 
 	const studentClassId = user?.student?.classId ?? null;
-	const { inTerm, entries } = await getDaySchedule(
-		date,
-		user?.student ? { classId: studentClassId ?? -1 } : {},
+	const [{ inTerm, entries }, bells] = await Promise.all([
+		getDaySchedule(date, user?.student ? { classId: studentClassId ?? -1 } : {}),
+		listBells(),
+	]);
+	const bellByNumber = new Map(
+		bells.map((bell) => [bell.lessonNumber, `${bell.startTime}–${bell.endTime}`]),
 	);
 	const myEntries = employee
 		? entries.filter(
@@ -176,6 +180,18 @@ export default async function SchedulePage(props: { searchParams: Promise<Search
 			/>
 		);
 
+	// Номер урока + время по расписанию звонков, если оно заведено.
+	const lessonCell = (lessonNumber: number) => (
+		<>
+			{lessonNumber}
+			{bellByNumber.has(lessonNumber) && (
+				<Text size="xs" c="dimmed">
+					{bellByNumber.get(lessonNumber)}
+				</Text>
+			)}
+		</>
+	);
+
 	// Учитель в ячейке: заменяющий с пометкой, если на эту дату есть замена.
 	const teacherCell = (entry: DayScheduleEntry) =>
 		entry.substitution ? (
@@ -220,7 +236,7 @@ export default async function SchedulePage(props: { searchParams: Promise<Search
 						<TableTbody>
 							{entries.map((entry) => (
 								<TableTr key={entry.slot.id}>
-									<TableTd ta="center">{entry.slot.lessonNumber}</TableTd>
+									<TableTd ta="center">{lessonCell(entry.slot.lessonNumber)}</TableTd>
 									<TableTd>{entry.slot.subject.name}</TableTd>
 									<TableTd>{teacherCell(entry)}</TableTd>
 									<TableTd>{entry.slot.room ?? "—"}</TableTd>
@@ -263,7 +279,7 @@ export default async function SchedulePage(props: { searchParams: Promise<Search
 										key={entry.slot.id}
 										style={givenAway ? { opacity: 0.55 } : undefined}
 									>
-										<TableTd ta="center">{entry.slot.lessonNumber}</TableTd>
+										<TableTd ta="center">{lessonCell(entry.slot.lessonNumber)}</TableTd>
 										<TableTd>{entry.slot.class.name}</TableTd>
 										<TableTd>{entry.slot.subject.name}</TableTd>
 										<TableTd>{entry.slot.room ?? "—"}</TableTd>
@@ -332,9 +348,7 @@ export default async function SchedulePage(props: { searchParams: Promise<Search
 									<TableTbody>
 										{group.items.map((entry) => (
 											<TableTr key={entry.slot.id}>
-												<TableTd ta="center">
-													{entry.slot.lessonNumber}
-												</TableTd>
+												<TableTd ta="center">{lessonCell(entry.slot.lessonNumber)}</TableTd>
 												<TableTd>{entry.slot.subject.name}</TableTd>
 												<TableTd>{teacherCell(entry)}</TableTd>
 												<TableTd>{entry.slot.room ?? "—"}</TableTd>

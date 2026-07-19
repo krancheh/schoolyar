@@ -25,6 +25,7 @@ export const NAV_GROUPS: NavGroup[] = [
 			{ label: "Журнал", href: "/journal" },
 			{ label: "Мой класс", href: "/my-class", visible: (r) => r.isStudent },
 			{ label: "Расписание", href: "/schedule" },
+			{ label: "Звонки", href: "/bells" },
 			{ label: "Замены", href: "/substitutions" },
 		],
 	},

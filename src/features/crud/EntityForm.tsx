@@ -21,7 +21,15 @@ export type FieldOption = { value: string; label: string };
 export type EntityField = {
 	name: string;
 	label: string;
-	type?: "text" | "number" | "date" | "password" | "select" | "checkbox" | "hidden";
+	type?:
+		| "text"
+		| "number"
+		| "date"
+		| "time"
+		| "password"
+		| "select"
+		| "checkbox"
+		| "hidden";
 	required?: boolean;
 	// значение отправляется числом (id из селектов, номера)
 	numeric?: boolean;
