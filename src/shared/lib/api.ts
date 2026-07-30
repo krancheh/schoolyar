@@ -9,7 +9,7 @@ export function jsonError(message: string, status = 400) {
 export class ServiceError extends Error {
 	constructor(
 		message: string,
-		public readonly status = 400
+		public readonly status = 400,
 	) {
 		super(message);
 		this.name = "ServiceError";
@@ -53,7 +53,7 @@ export function isoDayOfWeek(date: Date): number {
 
 export function* eachDay(from: Date, to: Date): Generator<Date> {
 	const current = new Date(
-		Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), from.getUTCDate())
+		Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), from.getUTCDate()),
 	);
 	while (current.getTime() <= to.getTime()) {
 		yield new Date(current);

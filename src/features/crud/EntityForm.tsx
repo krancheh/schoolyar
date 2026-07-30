@@ -22,15 +22,7 @@ export type FieldOption = { value: string; label: string };
 export type EntityField = {
 	name: string;
 	label: string;
-	type?:
-		| "text"
-		| "number"
-		| "date"
-		| "time"
-		| "password"
-		| "select"
-		| "checkbox"
-		| "hidden";
+	type?: "text" | "number" | "date" | "time" | "password" | "select" | "checkbox" | "hidden";
 	required?: boolean;
 	// значение отправляется числом (id из селектов, номера)
 	numeric?: boolean;
@@ -44,10 +36,7 @@ export type EntityInitial = Record<string, string | number | boolean | null>;
 
 type FormValues = Record<string, string | boolean>;
 
-function toFormValues(
-	fields: EntityField[],
-	initial?: EntityInitial
-): FormValues {
+function toFormValues(fields: EntityField[], initial?: EntityInitial): FormValues {
 	const values: FormValues = {};
 	for (const field of fields) {
 		const raw = initial?.[field.name];
@@ -81,15 +70,14 @@ export function EntityFormModal({
 	onClose,
 }: EntityFormModalProps) {
 	const router = useRouter();
-	const [values, setValues] = useState<FormValues>(() =>
-		toFormValues(fields, initial)
-	);
+	const [values, setValues] = useState<FormValues>(() => toFormValues(fields, initial));
 	const [error, setError] = useState<string | null>(null);
 	const [loading, setLoading] = useState(false);
 
 	// Сброс формы при каждом открытии.
 	useEffect(() => {
 		if (opened) {
+			// eslint-disable-next-line react-hooks/set-state-in-effect
 			setValues(toFormValues(fields, initial));
 			setError(null);
 		}
@@ -194,6 +182,7 @@ export function EntityFormModal({
 									onChange={(value) => set(field.name, value ?? "")}
 									required={field.required}
 									clearable={!field.required}
+									highlightToday
 								/>
 							);
 						}
@@ -219,9 +208,7 @@ export function EntityFormModal({
 									label={field.label}
 									description={field.description}
 									value={String(values[field.name] ?? "")}
-									onChange={(event) =>
-										set(field.name, event.currentTarget.value)
-									}
+									onChange={(event) => set(field.name, event.currentTarget.value)}
 									required={field.required}
 								/>
 							);

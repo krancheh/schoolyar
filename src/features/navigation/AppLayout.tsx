@@ -2,16 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import {
-	AppShell,
-	Badge,
-	Burger,
-	Button,
-	Group,
-	NavLink,
-	ScrollArea,
-	Text,
-} from "@mantine/core";
+import { AppShell, Badge, Burger, Button, Group, NavLink, ScrollArea, Text } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { NAV_GROUPS, NavRole } from "./nav-items";
 
@@ -56,7 +47,7 @@ export function AppLayout({ user, children }: AppLayoutProps) {
 				<AppShell.Section grow component={ScrollArea}>
 					{NAV_GROUPS.map((group) => {
 						const items = group.items.filter(
-							(item) => !item.visible || item.visible(user)
+							(item) => !item.visible || item.visible(user),
 						);
 						if (items.length === 0) return null;
 

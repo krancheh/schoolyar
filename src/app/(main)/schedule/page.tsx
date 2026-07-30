@@ -72,7 +72,7 @@ export default async function SchedulePage(props: { searchParams: Promise<Search
 		listBells(),
 	]);
 	const bellByNumber = new Map(
-		bells.map((bell) => [bell.lessonNumber, `${bell.startTime}–${bell.endTime}`]),
+		bells.map((bell) => [bell.lessonNumber, `${bell.startTime} – ${bell.endTime}`]),
 	);
 	const myEntries = employee
 		? entries.filter(
@@ -236,7 +236,9 @@ export default async function SchedulePage(props: { searchParams: Promise<Search
 						<TableTbody>
 							{entries.map((entry) => (
 								<TableTr key={entry.slot.id}>
-									<TableTd ta="center">{lessonCell(entry.slot.lessonNumber)}</TableTd>
+									<TableTd ta="center">
+										{lessonCell(entry.slot.lessonNumber)}
+									</TableTd>
 									<TableTd>{entry.slot.subject.name}</TableTd>
 									<TableTd>{teacherCell(entry)}</TableTd>
 									<TableTd>{entry.slot.room ?? "—"}</TableTd>
@@ -255,7 +257,7 @@ export default async function SchedulePage(props: { searchParams: Promise<Search
 					<Table striped highlightOnHover withTableBorder>
 						<TableThead>
 							<TableTr>
-								<TableTh ta="center" w={64}>
+								<TableTh ta="center" w={120}>
 									Урок
 								</TableTh>
 								<TableTh>Класс</TableTh>
@@ -279,7 +281,9 @@ export default async function SchedulePage(props: { searchParams: Promise<Search
 										key={entry.slot.id}
 										style={givenAway ? { opacity: 0.55 } : undefined}
 									>
-										<TableTd ta="center">{lessonCell(entry.slot.lessonNumber)}</TableTd>
+										<TableTd ta="center">
+											{lessonCell(entry.slot.lessonNumber)}
+										</TableTd>
 										<TableTd>{entry.slot.class.name}</TableTd>
 										<TableTd>{entry.slot.subject.name}</TableTd>
 										<TableTd>{entry.slot.room ?? "—"}</TableTd>
@@ -348,7 +352,9 @@ export default async function SchedulePage(props: { searchParams: Promise<Search
 									<TableTbody>
 										{group.items.map((entry) => (
 											<TableTr key={entry.slot.id}>
-												<TableTd ta="center">{lessonCell(entry.slot.lessonNumber)}</TableTd>
+												<TableTd ta="center">
+													{lessonCell(entry.slot.lessonNumber)}
+												</TableTd>
 												<TableTd>{entry.slot.subject.name}</TableTd>
 												<TableTd>{teacherCell(entry)}</TableTd>
 												<TableTd>{entry.slot.room ?? "—"}</TableTd>

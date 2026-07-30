@@ -1,11 +1,7 @@
 import { NextResponse } from "next/server";
 import { parseBody, serviceErrorResponse } from "@shared/lib/api";
 import { requireAuth, requireManager } from "@shared/lib/auth";
-import {
-	CreateBellInput,
-	createBell,
-	listBells,
-} from "@entities/bell-schedule/service";
+import { CreateBellInput, createBell, listBells } from "@entities/bell-schedule/service";
 
 export async function GET() {
 	const auth = await requireAuth();
