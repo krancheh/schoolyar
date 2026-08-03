@@ -16,6 +16,17 @@ export function formatDateInput(date: Date | null | undefined): string | null {
 	return date ? date.toISOString().slice(0, 10) : null;
 }
 
+// Короткая дата «ДД.ММ» для узких колонок таблиц.
+const shortDateFormat = new Intl.DateTimeFormat("ru-RU", {
+	day: "2-digit",
+	month: "2-digit",
+	timeZone: "UTC",
+});
+
+export function formatDateShort(date: Date): string {
+	return shortDateFormat.format(date);
+}
+
 const dayTitleFormat = new Intl.DateTimeFormat("ru-RU", {
 	weekday: "long",
 	day: "2-digit",
