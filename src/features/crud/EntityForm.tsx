@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
 	Alert,
 	Button,
+	type ButtonProps,
 	Checkbox,
 	Modal,
 	PasswordInput,
@@ -242,6 +243,8 @@ type CreateEntityButtonProps = {
 	label?: string;
 	// предзаполненные значения (в т.ч. для hidden-полей)
 	initial?: EntityInitial;
+	variant?: ButtonProps["variant"];
+	size?: ButtonProps["size"];
 };
 
 export function CreateEntityButton({
@@ -250,12 +253,14 @@ export function CreateEntityButton({
 	url,
 	label = "Добавить",
 	initial,
+	variant,
+	size = "sm",
 }: CreateEntityButtonProps) {
 	const [opened, { open, close }] = useDisclosure(false);
 
 	return (
 		<>
-			<Button size="sm" onClick={open}>
+			<Button variant={variant} size={size} onClick={open}>
 				{label}
 			</Button>
 			<EntityFormModal

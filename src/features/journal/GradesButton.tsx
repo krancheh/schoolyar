@@ -30,20 +30,35 @@ function toRowState(students: GradeRow[]): Record<number, RowState> {
 	return state;
 }
 
+// Данные для создания записи журнала по уроку из расписания,
+// у которого записи ещё нет (lessonId = null).
+export type CreateLessonPayload = {
+	date: string;
+	classId: number;
+	subjectId: number;
+	teacherId: number;
+	scheduleSlotId: number;
+};
+
 // Выставление оценок за урок: список учеников класса с выбором балла 1–5.
 // Сохраняет через PUT /api/journal/:id/grades (upsert; снять оценку нельзя).
+// Для урока из расписания без записи журнала запись создаётся при сохранении.
 export function GradesButton({
 	lessonId,
 	title,
 	students,
+	create,
 }: {
-	lessonId: number;
+	lessonId: number | null;
 	title: string;
 	students: GradeRow[];
+	create?: CreateLessonPayload;
 }) {
 	const router = useRouter();
 	const [opened, { open, close }] = useDisclosure(false);
 	const [rows, setRows] = useState<Record<number, RowState>>(() => toRowState(students));
+	// id записи, созданной этой кнопкой: при повторной попытке не создаём дубль
+	const [createdId, setCreatedId] = useState<number | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [loading, setLoading] = useState(false);
 
@@ -78,7 +93,27 @@ export function GradesButton({
 
 		setLoading(true);
 		try {
-			const res = await fetch(`/api/journal/${lessonId}/grades`, {
+			let targetId = lessonId ?? createdId;
+			if (targetId == null) {
+				if (!create) {
+					setError("Не удалось определить урок");
+					return;
+				}
+				const createRes = await fetch("/api/journal", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify(create),
+				});
+				const createJson = await createRes.json().catch(() => null);
+				if (!createRes.ok) {
+					setError(createJson?.error ?? "Не удалось создать запись журнала");
+					return;
+				}
+				targetId = createJson.lesson.id as number;
+				setCreatedId(targetId);
+			}
+
+			const res = await fetch(`/api/journal/${targetId}/grades`, {
 				method: "PUT",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ grades }),

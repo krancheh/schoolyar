@@ -238,16 +238,36 @@ export default async function JournalPage(props: { searchParams: Promise<SearchP
 		}
 	} else if (canEdit && classId && subjectId) {
 		// Журнал учителя: сетка «ученики × уроки недели» с оценками.
+		// Уроки берутся из расписания и из фактических записей журнала;
+		// у урока без записи id = null — запись создаётся при первом сохранении.
 		const { students, lessons } = await getGradeGrid(classId, subjectId, monday);
+		const lessonKey = (lesson: (typeof lessons)[number]) =>
+			lesson.id != null
+				? `l${lesson.id}`
+				: `s${lesson.scheduleSlotId}:${formatDateInput(lesson.date)}`;
 		const gradeByCell = new Map<string, { value: number; comment: string | null }>();
 		for (const lesson of lessons) {
 			for (const grade of lesson.grades) {
-				gradeByCell.set(`${lesson.id}:${grade.studentId}`, grade);
+				gradeByCell.set(`${lessonKey(lesson)}:${grade.studentId}`, grade);
 			}
 		}
+		// Поля модалки «Изменить» для урока из расписания без записи журнала:
+		// создание записи с темой/ДЗ, реквизиты урока — скрытыми полями.
+		const materializeFields: EntityField[] = [
+			{ name: "date", label: "Дата", type: "hidden" },
+			{ name: "classId", label: "Класс", type: "hidden", numeric: true },
+			{ name: "subjectId", label: "Предмет", type: "hidden", numeric: true },
+			{ name: "teacherId", label: "Учитель", type: "hidden", numeric: true },
+			{ name: "scheduleSlotId", label: "Слот", type: "hidden", numeric: true },
+			{ name: "topic", label: "Тема" },
+			{ name: "homework", label: "Домашнее задание" },
+		];
 		content =
 			lessons.length === 0 ? (
-				<Text c="dimmed">На этой неделе уроков по выбранному предмету нет.</Text>
+				<Text c="dimmed">
+					На этой неделе уроков по выбранному предмету нет — ни в расписании, ни в
+					журнале.
+				</Text>
 			) : (
 				<Stack gap="lg">
 					<TableScrollContainer minWidth={560}>
@@ -256,7 +276,7 @@ export default async function JournalPage(props: { searchParams: Promise<SearchP
 								<TableTr>
 									<TableTh>Ученик</TableTh>
 									{lessons.map((lesson) => (
-										<TableTh key={lesson.id} ta="center">
+										<TableTh key={lessonKey(lesson)} ta="center">
 											{`${DAY_NAMES_SHORT[isoDayOfWeek(lesson.date)]} ${formatDateShort(lesson.date)}`}
 										</TableTh>
 									))}
@@ -276,11 +296,11 @@ export default async function JournalPage(props: { searchParams: Promise<SearchP
 											<TableTd>{student.fullName}</TableTd>
 											{lessons.map((lesson) => {
 												const grade = gradeByCell.get(
-													`${lesson.id}:${student.id}`,
+													`${lessonKey(lesson)}:${student.id}`,
 												);
 												return (
 													<TableTd
-														key={lesson.id}
+														key={lessonKey(lesson)}
 														ta="center"
 														title={grade?.comment ?? undefined}
 													>
@@ -309,6 +329,10 @@ export default async function JournalPage(props: { searchParams: Promise<SearchP
 
 					<Stack gap="xs">
 						<Title order={4}>Уроки недели</Title>
+						<Text size="xs" c="dimmed">
+							Показаны все уроки из расписания. Для урока с пометкой «нет записи»
+							запись журнала создаётся автоматически при сохранении оценок или темы.
+						</Text>
 						<TableScrollContainer minWidth={760}>
 							<Table striped highlightOnHover withTableBorder>
 								<TableThead>
@@ -323,13 +347,23 @@ export default async function JournalPage(props: { searchParams: Promise<SearchP
 								</TableThead>
 								<TableTbody>
 									{lessons.map((lesson) => (
-										<TableTr key={lesson.id}>
+										<TableTr key={lessonKey(lesson)}>
 											<TableTd>
 												{formatDate(lesson.date)}
 												{lesson.lessonNumber != null && (
 													<Text size="xs" c="dimmed">
 														урок {lesson.lessonNumber}
 													</Text>
+												)}
+												{lesson.id == null && (
+													<Badge
+														mt={4}
+														color="gray"
+														variant="light"
+														size="sm"
+													>
+														нет записи
+													</Badge>
 												)}
 											</TableTd>
 											<TableTd>{lesson.teacher.fullName}</TableTd>
@@ -349,9 +383,24 @@ export default async function JournalPage(props: { searchParams: Promise<SearchP
 													<GradesButton
 														lessonId={lesson.id}
 														title={`Оценки — ${formatDate(lesson.date)}`}
+														create={
+															lesson.id == null
+																? {
+																		date: formatDateInput(
+																			lesson.date,
+																		)!,
+																		classId,
+																		subjectId,
+																		teacherId:
+																			lesson.teacher.id,
+																		scheduleSlotId:
+																			lesson.scheduleSlotId!,
+																	}
+																: undefined
+														}
 														students={students.map((student) => {
 															const grade = gradeByCell.get(
-																`${lesson.id}:${student.id}`,
+																`${lessonKey(lesson)}:${student.id}`,
 															);
 															return {
 																studentId: student.id,
@@ -361,15 +410,34 @@ export default async function JournalPage(props: { searchParams: Promise<SearchP
 															};
 														})}
 													/>
-													<EditEntityButton
-														title={`Урок ${formatDate(lesson.date)}`}
-														fields={editFields}
-														url={`/api/journal/${lesson.id}`}
-														initial={{
-															topic: lesson.topic,
-															homework: lesson.homework,
-														}}
-													/>
+													{lesson.id != null ? (
+														<EditEntityButton
+															title={`Урок ${formatDate(lesson.date)}`}
+															fields={editFields}
+															url={`/api/journal/${lesson.id}`}
+															initial={{
+																topic: lesson.topic,
+																homework: lesson.homework,
+															}}
+														/>
+													) : (
+														<CreateEntityButton
+															title={`Урок ${formatDate(lesson.date)}`}
+															label="Изменить"
+															variant="subtle"
+															size="compact-sm"
+															fields={materializeFields}
+															url="/api/journal"
+															initial={{
+																date: formatDateInput(lesson.date),
+																classId,
+																subjectId,
+																teacherId: lesson.teacher.id,
+																scheduleSlotId:
+																	lesson.scheduleSlotId,
+															}}
+														/>
+													)}
 												</Group>
 											</TableTd>
 										</TableTr>

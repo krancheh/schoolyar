@@ -1,7 +1,7 @@
 import { AttendanceStatus } from "@prisma/client";
 import { prisma } from "@shared/lib/db";
 import { ServiceError, parseDate } from "@shared/lib/api";
-import { addDays } from "@shared/lib/format";
+import { addDays, formatDateInput } from "@shared/lib/format";
 
 // Средний балл всегда считается по оценкам, в БД не хранится.
 function averageOf(grades: { value: number }[]): number | null {
@@ -155,7 +155,9 @@ export async function getStudentWeekJournal(
 }
 
 export type GradeGridLesson = {
-	id: number;
+	// null — урок есть в расписании, но запись журнала ещё не создана
+	id: number | null;
+	scheduleSlotId: number | null;
 	date: Date;
 	lessonNumber: number | null;
 	topic: string | null;
@@ -174,6 +176,9 @@ export type GradeGridStudent = {
 
 // Сетка журнала для учителя: ученики класса × уроки предмета за неделю,
 // плюс итоговый средний балл каждого ученика за текущую четверть.
+// Уроки недели — объединение расписания и фактических записей журнала:
+// запись мержится со слотом по паре (scheduleSlotId, дата), уроки из
+// расписания без записи возвращаются с id = null.
 export async function getGradeGrid(
 	classId: number,
 	subjectId: number,
@@ -186,7 +191,7 @@ export async function getGradeGrid(
 	});
 	if (!cls) throw new ServiceError("Class not found", 404);
 
-	const [students, lessons, range] = await Promise.all([
+	const [students, lessons, slots, range] = await Promise.all([
 		prisma.student.findMany({
 			where: { classId, isActive: true },
 			orderBy: { fullName: "asc" },
@@ -200,8 +205,68 @@ export async function getGradeGrid(
 				grades: { select: { studentId: true, value: true, comment: true } },
 			},
 		}),
+		prisma.scheduleSlot.findMany({
+			where: {
+				classId,
+				subjectId,
+				term: { startDate: { lte: to }, endDate: { gte: from } },
+			},
+			select: {
+				id: true,
+				dayOfWeek: true,
+				lessonNumber: true,
+				teacher: { select: { id: true, fullName: true } },
+				term: { select: { startDate: true, endDate: true } },
+			},
+		}),
 		termRangeForWeek(cls.academicYearId, from, to),
 	]);
+
+	// Замены недели: в журнале показываем фактического учителя.
+	const substitutions =
+		slots.length > 0
+			? await prisma.substitution.findMany({
+					where: {
+						scheduleSlotId: { in: slots.map((slot) => slot.id) },
+						date: { gte: from, lte: to },
+					},
+					select: {
+						scheduleSlotId: true,
+						date: true,
+						substituteTeacher: { select: { id: true, fullName: true } },
+					},
+				})
+			: [];
+	const substituteByKey = new Map(
+		substitutions.map((substitution) => [
+			`${substitution.scheduleSlotId}|${formatDateInput(substitution.date)}`,
+			substitution.substituteTeacher,
+		]),
+	);
+
+	// Плановые уроки недели из расписания (weekStart — понедельник).
+	type PlannedLesson = {
+		slotId: number;
+		date: Date;
+		lessonNumber: number;
+		teacher: { id: number; fullName: string };
+	};
+	const planned = new Map<string, PlannedLesson>();
+	for (let index = 0; index < WEEK_DAYS_SHOWN; index++) {
+		const day = addDays(from, index);
+		const dayOfWeek = index + 1;
+		for (const slot of slots) {
+			if (slot.dayOfWeek !== dayOfWeek) continue;
+			if (slot.term.startDate > day || slot.term.endDate < day) continue;
+			const key = `${slot.id}|${formatDateInput(day)}`;
+			planned.set(key, {
+				slotId: slot.id,
+				date: day,
+				lessonNumber: slot.lessonNumber,
+				teacher: substituteByKey.get(key) ?? slot.teacher,
+			});
+		}
+	}
 
 	const termAverage = new Map<number, number>();
 	if (range) {
@@ -222,24 +287,49 @@ export async function getGradeGrid(
 		}
 	}
 
+	// Фактические записи журнала «закрывают» свой слот расписания.
+	const entries: GradeGridLesson[] = lessons.map((lesson) => {
+		if (lesson.scheduleSlotId) {
+			planned.delete(`${lesson.scheduleSlotId}|${formatDateInput(lesson.date)}`);
+		}
+		return {
+			id: lesson.id,
+			scheduleSlotId: lesson.scheduleSlotId,
+			date: lesson.date,
+			lessonNumber: lesson.scheduleSlot?.lessonNumber ?? null,
+			topic: lesson.topic,
+			homework: lesson.homework,
+			teacher: lesson.teacher,
+			averageGrade: averageOf(lesson.grades),
+			grades: lesson.grades,
+		};
+	});
+	for (const occurrence of planned.values()) {
+		entries.push({
+			id: null,
+			scheduleSlotId: occurrence.slotId,
+			date: occurrence.date,
+			lessonNumber: occurrence.lessonNumber,
+			topic: null,
+			homework: null,
+			teacher: occurrence.teacher,
+			averageGrade: null,
+			grades: [],
+		});
+	}
+	entries.sort(
+		(a, b) =>
+			a.date.getTime() - b.date.getTime() ||
+			(a.lessonNumber ?? 99) - (b.lessonNumber ?? 99) ||
+			(a.id ?? 0) - (b.id ?? 0),
+	);
+
 	return {
 		students: students.map((student) => ({
 			...student,
 			termAverage: termAverage.get(student.id) ?? null,
 		})),
-		lessons: lessons
-			.slice()
-			.sort(byDateAndLessonNumber)
-			.map((lesson) => ({
-				id: lesson.id,
-				date: lesson.date,
-				lessonNumber: lesson.scheduleSlot?.lessonNumber ?? null,
-				topic: lesson.topic,
-				homework: lesson.homework,
-				teacher: lesson.teacher,
-				averageGrade: averageOf(lesson.grades),
-				grades: lesson.grades,
-			})),
+		lessons: entries,
 	};
 }
 
