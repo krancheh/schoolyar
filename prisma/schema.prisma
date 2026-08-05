@@ -83,6 +83,8 @@ model Student {
   user       User?
   grades     Grade[]
   attendance Attendance[]
+  termGrades TermGrade[]
+  yearGrades YearGrade[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -94,8 +96,9 @@ model AcademicYear {
   startDate DateTime @db.Date
   endDate   DateTime @db.Date
 
-  terms   Term[]
-  classes Class[]
+  terms      Term[]
+  classes    Class[]
+  yearGrades YearGrade[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -111,6 +114,7 @@ model Term {
   endDate        DateTime     @db.Date
 
   scheduleSlots ScheduleSlot[]
+  termGrades    TermGrade[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -142,6 +146,8 @@ model Subject {
 
   scheduleSlots ScheduleSlot[]
   lessons       Lesson[]
+  termGrades    TermGrade[]
+  yearGrades    YearGrade[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -218,6 +224,41 @@ model Lesson {
   updatedAt DateTime @updatedAt
 
   @@index([classId, subjectId, date])
+}
+
+// Итоговая оценка за учебный период (четверть/триместр/семестр),
+// выставляется учителем вручную.
+model TermGrade {
+  id        Int     @id @default(autoincrement())
+  studentId Int
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subjectId Int
+  subject   Subject @relation(fields: [subjectId], references: [id])
+  termId    Int
+  term      Term    @relation(fields: [termId], references: [id], onDelete: Cascade)
+  value     Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([studentId, subjectId, termId])
+}
+
+// Годовая («итоговая») оценка за учебный год, выставляется учителем вручную.
+model YearGrade {
+  id             Int          @id @default(autoincrement())
+  studentId      Int
+  student        Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subjectId      Int
+  subject        Subject      @relation(fields: [subjectId], references: [id])
+  academicYearId Int
+  academicYear   AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  value          Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([studentId, subjectId, academicYearId])
 }
 
 model Grade {

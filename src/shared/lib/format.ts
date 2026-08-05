@@ -41,6 +41,17 @@ export function formatDayTitle(date: Date): string {
 	return formatted.charAt(0).toUpperCase() + formatted.slice(1);
 }
 
+// «1 четверть» / «2 триместр» / «1 семестр» — по типу учебного периода.
+const TERM_TYPE_NAMES: Record<string, string> = {
+	QUARTER: "четверть",
+	TRIMESTER: "триместр",
+	SEMESTER: "семестр",
+};
+
+export function termLabel(type: string, number: number): string {
+	return `${number} ${TERM_TYPE_NAMES[type] ?? "период"}`;
+}
+
 export function addDays(date: Date, days: number): Date {
 	const next = new Date(date);
 	next.setUTCDate(next.getUTCDate() + days);

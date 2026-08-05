@@ -23,9 +23,16 @@ import {
 	formatDateInput,
 	formatDateShort,
 	formatDayTitle,
+	termLabel,
 } from "@shared/lib/format";
 import { LinkButton } from "@shared/ui/LinkButton";
-import { getGradeGrid, getStudentWeekJournal, listLessons } from "@entities/journal/service";
+import {
+	getClassTerms,
+	getGradeGrid,
+	getStudentTermSummary,
+	getStudentWeekJournal,
+	listLessons,
+} from "@entities/journal/service";
 import { listClasses } from "@entities/class/service";
 import { listSubjects } from "@entities/subject/service";
 import { listEmployees } from "@entities/employee/service";
@@ -33,6 +40,8 @@ import { listScheduleSlots } from "@entities/schedule/service";
 import { CreateEntityButton, EditEntityButton, EntityField } from "@features/crud/EntityForm";
 import { GradesButton } from "@features/journal/GradesButton";
 import { JournalFilters } from "@features/journal/JournalFilters";
+import { TermSelect } from "@features/journal/TermSelect";
+import { FinalGradesButton } from "@features/journal/FinalGradesButton";
 
 export const metadata: Metadata = { title: "Журнал — Школьный портал" };
 
@@ -52,7 +61,33 @@ function gradeColor(value: number): string {
 	return "red";
 }
 
-type SearchParams = { date?: string; classId?: string; subjectId?: string };
+type TermOption = { id: number; type: string; number: number; startDate: Date; endDate: Date };
+
+// Период по умолчанию: содержащий сегодняшнюю дату, иначе ближайший
+// будущий, иначе последний (после конца года — итоги года).
+function pickTerm(terms: TermOption[], todayTime: number): TermOption | null {
+	return (
+		terms.find(
+			(term) => term.startDate.getTime() <= todayTime && todayTime <= term.endDate.getTime(),
+		) ??
+		terms.find((term) => term.startDate.getTime() > todayTime) ??
+		terms[terms.length - 1] ??
+		null
+	);
+}
+
+function parsePositiveInt(value: string | undefined): number | null {
+	const parsed = Number.parseInt(value ?? "", 10);
+	return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+type SearchParams = {
+	tab?: string;
+	date?: string;
+	classId?: string;
+	subjectId?: string;
+	termId?: string;
+};
 
 export default async function JournalPage(props: { searchParams: Promise<SearchParams> }) {
 	const [user, params] = await Promise.all([getAuthUser(), props.searchParams]);
@@ -60,24 +95,10 @@ export default async function JournalPage(props: { searchParams: Promise<SearchP
 
 	const todayStr = todayISO();
 	const today = parseDate(todayStr)!;
-	const date = parseDate(params.date) ?? today;
-	const monday = addDays(date, 1 - isoDayOfWeek(date));
-	const saturday = addDays(monday, 5);
-	const mondayStr = formatDateInput(monday)!;
-	const isCurrentWeek = mondayStr === formatDateInput(addDays(today, 1 - isoDayOfWeek(today)));
 
-	const classIdParam = Number.parseInt(params.classId ?? "", 10);
-	const subjectIdParam = Number.parseInt(params.subjectId ?? "", 10);
-	const classId = Number.isInteger(classIdParam) && classIdParam > 0 ? classIdParam : null;
-	const subjectId =
-		Number.isInteger(subjectIdParam) && subjectIdParam > 0 ? subjectIdParam : null;
-
-	const hrefFor = (target: Date) => {
-		const query = new URLSearchParams({ date: formatDateInput(target)! });
-		if (canEdit && classId) query.set("classId", String(classId));
-		if (canEdit && classId && subjectId) query.set("subjectId", String(subjectId));
-		return `/journal?${query.toString()}`;
-	};
+	const classId = parsePositiveInt(params.classId);
+	const subjectId = parsePositiveInt(params.subjectId);
+	const termIdParam = parsePositiveInt(params.termId);
 
 	// Справочники для фильтров и модалок создания (только сотрудникам).
 	const [classes, subjects, employees, slots] = await Promise.all([
@@ -139,14 +160,170 @@ export default async function JournalPage(props: { searchParams: Promise<SearchP
 		{ name: "topic", label: "Тема", nullable: true },
 		{ name: "homework", label: "Домашнее задание", nullable: true },
 	];
+	// Поля модалки «Изменить» для урока из расписания без записи журнала:
+	// создание записи с темой/ДЗ, реквизиты урока — скрытыми полями.
+	const materializeFields: EntityField[] = [
+		{ name: "date", label: "Дата", type: "hidden" },
+		{ name: "classId", label: "Класс", type: "hidden", numeric: true },
+		{ name: "subjectId", label: "Предмет", type: "hidden", numeric: true },
+		{ name: "teacherId", label: "Учитель", type: "hidden", numeric: true },
+		{ name: "scheduleSlotId", label: "Слот", type: "hidden", numeric: true },
+		{ name: "topic", label: "Тема" },
+		{ name: "homework", label: "Домашнее задание" },
+	];
 
+	let toolbar = null;
 	let content;
 	if (user?.student) {
-		// Дневник ученика: 6 таблиц по дням недели с личными оценками.
 		const studentClassId = user.student.classId;
+		const tab = params.tab === "diary" ? "diary" : "grades";
 		if (!studentClassId) {
 			content = <Text c="dimmed">Вы не привязаны к классу — журнал недоступен.</Text>;
+		} else if (tab === "grades") {
+			// Вкладка «Оценки»: сводка по предметам за выбранный учебный период.
+			const { terms } = await getClassTerms(studentClassId);
+			const term =
+				terms.find((candidate) => candidate.id === termIdParam) ??
+				pickTerm(terms, today.getTime());
+
+			toolbar = (
+				<Group justify="space-between" wrap="wrap">
+					<Group gap="xs">
+						<LinkButton href="/journal?tab=grades" variant="filled" size="compact-sm">
+							Оценки
+						</LinkButton>
+						<LinkButton href="/journal?tab=diary" variant="default" size="compact-sm">
+							Дневник
+						</LinkButton>
+					</Group>
+					<TermSelect
+						termId={term ? String(term.id) : null}
+						terms={terms.map((candidate) => ({
+							value: String(candidate.id),
+							label: termLabel(candidate.type, candidate.number),
+						}))}
+					/>
+				</Group>
+			);
+
+			if (!term) {
+				content = <Text c="dimmed">У учебного года класса не заданы учебные периоды.</Text>;
+			} else {
+				const rows = await getStudentTermSummary(studentClassId, user.student.id, term.id);
+				content =
+					rows.length === 0 ? (
+						<Text c="dimmed">В этом периоде нет предметов с уроками.</Text>
+					) : (
+						<TableScrollContainer minWidth={720}>
+							<Table striped highlightOnHover withTableBorder>
+								<TableThead>
+									<TableTr>
+										<TableTh>Предмет</TableTh>
+										<TableTh>Оценки</TableTh>
+										<TableTh ta="center">
+											{`Оценка за ${termLabel(term.type, term.number)}`}
+										</TableTh>
+										<TableTh ta="center">Итоговая оценка</TableTh>
+									</TableTr>
+								</TableThead>
+								<TableTbody>
+									{rows.map((row) => (
+										<TableTr key={row.subject.id}>
+											<TableTd>{row.subject.name}</TableTd>
+											<TableTd>
+												{row.grades.length === 0 ? (
+													"—"
+												) : (
+													<Group gap={4}>
+														{row.grades.map((grade, index) => (
+															<Badge
+																key={index}
+																variant="light"
+																color={gradeColor(grade.value)}
+																title={`${formatDate(grade.date)}${grade.comment ? ` — ${grade.comment}` : ""}`}
+															>
+																{grade.value}
+															</Badge>
+														))}
+													</Group>
+												)}
+											</TableTd>
+											<TableTd ta="center">
+												{row.termGrade != null ? (
+													<Badge
+														variant="filled"
+														color={gradeColor(row.termGrade)}
+													>
+														{row.termGrade}
+													</Badge>
+												) : (
+													"—"
+												)}
+											</TableTd>
+											<TableTd ta="center">
+												{row.yearGrade != null ? (
+													<Badge
+														variant="filled"
+														color={gradeColor(row.yearGrade)}
+													>
+														{row.yearGrade}
+													</Badge>
+												) : (
+													"—"
+												)}
+											</TableTd>
+										</TableTr>
+									))}
+								</TableTbody>
+							</Table>
+						</TableScrollContainer>
+					);
+			}
 		} else {
+			// Вкладка «Дневник»: 6 таблиц по дням недели с листанием недель.
+			const date = parseDate(params.date) ?? today;
+			const monday = addDays(date, 1 - isoDayOfWeek(date));
+			const saturday = addDays(monday, 5);
+			const mondayStr = formatDateInput(monday)!;
+			const isCurrentWeek =
+				mondayStr === formatDateInput(addDays(today, 1 - isoDayOfWeek(today)));
+			const hrefFor = (target: Date) => `/journal?tab=diary&date=${formatDateInput(target)!}`;
+
+			toolbar = (
+				<Group justify="space-between" wrap="wrap">
+					<Group gap="xs">
+						<LinkButton href="/journal?tab=grades" variant="default" size="compact-sm">
+							Оценки
+						</LinkButton>
+						<LinkButton href="/journal?tab=diary" variant="filled" size="compact-sm">
+							Дневник
+						</LinkButton>
+					</Group>
+					<Group gap="xs">
+						<LinkButton
+							href={hrefFor(addDays(monday, -7))}
+							variant="default"
+							size="compact-sm"
+						>
+							← Пред. неделя
+						</LinkButton>
+						<Text fw={600}>{`${formatDate(monday)} – ${formatDate(saturday)}`}</Text>
+						<LinkButton
+							href={hrefFor(addDays(monday, 7))}
+							variant="default"
+							size="compact-sm"
+						>
+							След. неделя →
+						</LinkButton>
+						{!isCurrentWeek && (
+							<LinkButton href={hrefFor(today)} variant="light" size="compact-sm">
+								Текущая неделя
+							</LinkButton>
+						)}
+					</Group>
+				</Group>
+			);
+
 			const lessons = await getStudentWeekJournal(studentClassId, user.student.id, monday);
 			const byDay = new Map<string, typeof lessons>();
 			for (const lesson of lessons) {
@@ -236,40 +413,74 @@ export default async function JournalPage(props: { searchParams: Promise<SearchP
 				</Stack>
 			);
 		}
-	} else if (canEdit && classId && subjectId) {
-		// Журнал учителя: сетка «ученики × уроки недели» с оценками.
-		// Уроки берутся из расписания и из фактических записей журнала;
-		// у урока без записи id = null — запись создаётся при первом сохранении.
-		const { students, lessons } = await getGradeGrid(classId, subjectId, monday);
-		const lessonKey = (lesson: (typeof lessons)[number]) =>
-			lesson.id != null
-				? `l${lesson.id}`
-				: `s${lesson.scheduleSlotId}:${formatDateInput(lesson.date)}`;
-		const gradeByCell = new Map<string, { value: number; comment: string | null }>();
-		for (const lesson of lessons) {
-			for (const grade of lesson.grades) {
-				gradeByCell.set(`${lessonKey(lesson)}:${grade.studentId}`, grade);
+	} else if (canEdit) {
+		// Журнал сотрудника: Класс → Предмет → Период, сетка «ученики ×
+		// все уроки периода» (расписание + записи журнала) и итоговые оценки.
+		const classTerms = classId ? await getClassTerms(classId) : null;
+		const terms = classTerms?.terms ?? [];
+		const term =
+			terms.find((candidate) => candidate.id === termIdParam) ??
+			pickTerm(terms, today.getTime());
+
+		toolbar = (
+			<Group justify="flex-end">
+				<JournalFilters
+					classId={classId ? String(classId) : null}
+					subjectId={subjectId ? String(subjectId) : null}
+					termId={term ? String(term.id) : null}
+					classes={classes.map((cls) => ({
+						value: String(cls.id),
+						label: `${cls.name} (${cls.academicYear.name})`,
+					}))}
+					subjects={subjects.map((subject) => ({
+						value: String(subject.id),
+						label: subject.name,
+					}))}
+					terms={terms.map((candidate) => ({
+						value: String(candidate.id),
+						label: termLabel(candidate.type, candidate.number),
+					}))}
+				/>
+			</Group>
+		);
+
+		if (!classId || !subjectId) {
+			content = (
+				<Text c="dimmed">Выберите класс и предмет, чтобы открыть журнал оценок.</Text>
+			);
+		} else if (!term || !classTerms) {
+			content = <Text c="dimmed">У учебного года класса не заданы учебные периоды.</Text>;
+		} else {
+			const { students, lessons } = await getGradeGrid(classId, subjectId, term.id);
+			const termName = termLabel(term.type, term.number);
+			const lessonKey = (lesson: (typeof lessons)[number]) =>
+				lesson.id != null
+					? `l${lesson.id}`
+					: `s${lesson.scheduleSlotId}:${formatDateInput(lesson.date)}`;
+			const gradeByCell = new Map<string, { value: number; comment: string | null }>();
+			for (const lesson of lessons) {
+				for (const grade of lesson.grades) {
+					gradeByCell.set(`${lessonKey(lesson)}:${grade.studentId}`, grade);
+				}
 			}
-		}
-		// Поля модалки «Изменить» для урока из расписания без записи журнала:
-		// создание записи с темой/ДЗ, реквизиты урока — скрытыми полями.
-		const materializeFields: EntityField[] = [
-			{ name: "date", label: "Дата", type: "hidden" },
-			{ name: "classId", label: "Класс", type: "hidden", numeric: true },
-			{ name: "subjectId", label: "Предмет", type: "hidden", numeric: true },
-			{ name: "teacherId", label: "Учитель", type: "hidden", numeric: true },
-			{ name: "scheduleSlotId", label: "Слот", type: "hidden", numeric: true },
-			{ name: "topic", label: "Тема" },
-			{ name: "homework", label: "Домашнее задание" },
-		];
-		content =
-			lessons.length === 0 ? (
-				<Text c="dimmed">
-					На этой неделе уроков по выбранному предмету нет — ни в расписании, ни в
-					журнале.
-				</Text>
-			) : (
+			content = (
 				<Stack gap="lg">
+					<Group justify="space-between">
+						<Title order={4}>{`Оценки — ${termName}`}</Title>
+						<FinalGradesButton
+							termId={term.id}
+							academicYearId={classTerms.academicYearId}
+							subjectId={subjectId}
+							termName={termName}
+							students={students.map((student) => ({
+								studentId: student.id,
+								fullName: student.fullName,
+								termAverage: student.termAverage,
+								termValue: student.termGrade,
+								yearValue: student.yearGrade,
+							}))}
+						/>
+					</Group>
 					<TableScrollContainer minWidth={560}>
 						<Table striped highlightOnHover withTableBorder>
 							<TableThead>
@@ -280,13 +491,15 @@ export default async function JournalPage(props: { searchParams: Promise<SearchP
 											{`${DAY_NAMES_SHORT[isoDayOfWeek(lesson.date)]} ${formatDateShort(lesson.date)}`}
 										</TableTh>
 									))}
-									<TableTh ta="center">Средний (четверть)</TableTh>
+									<TableTh ta="center">Средний</TableTh>
+									<TableTh ta="center">За период</TableTh>
+									<TableTh ta="center">Годовая</TableTh>
 								</TableTr>
 							</TableThead>
 							<TableTbody>
 								{students.length === 0 ? (
 									<TableTr>
-										<TableTd colSpan={lessons.length + 2}>
+										<TableTd colSpan={lessons.length + 4}>
 											<Text c="dimmed">В классе нет учеников.</Text>
 										</TableTd>
 									</TableTr>
@@ -320,6 +533,30 @@ export default async function JournalPage(props: { searchParams: Promise<SearchP
 											<TableTd ta="center" fw={600}>
 												{student.termAverage ?? "—"}
 											</TableTd>
+											<TableTd ta="center">
+												{student.termGrade != null ? (
+													<Badge
+														variant="filled"
+														color={gradeColor(student.termGrade)}
+													>
+														{student.termGrade}
+													</Badge>
+												) : (
+													"—"
+												)}
+											</TableTd>
+											<TableTd ta="center">
+												{student.yearGrade != null ? (
+													<Badge
+														variant="filled"
+														color={gradeColor(student.yearGrade)}
+													>
+														{student.yearGrade}
+													</Badge>
+												) : (
+													"—"
+												)}
+											</TableTd>
 										</TableTr>
 									))
 								)}
@@ -328,128 +565,136 @@ export default async function JournalPage(props: { searchParams: Promise<SearchP
 					</TableScrollContainer>
 
 					<Stack gap="xs">
-						<Title order={4}>Уроки недели</Title>
+						<Title order={4}>Уроки периода</Title>
 						<Text size="xs" c="dimmed">
 							Показаны все уроки из расписания. Для урока с пометкой «нет записи»
 							запись журнала создаётся автоматически при сохранении оценок или темы.
 						</Text>
-						<TableScrollContainer minWidth={760}>
-							<Table striped highlightOnHover withTableBorder>
-								<TableThead>
-									<TableTr>
-										<TableTh>Дата</TableTh>
-										<TableTh>Учитель</TableTh>
-										<TableTh>Тема</TableTh>
-										<TableTh>Домашнее задание</TableTh>
-										<TableTh ta="center">Средний за урок</TableTh>
-										<TableTh w={160} />
-									</TableTr>
-								</TableThead>
-								<TableTbody>
-									{lessons.map((lesson) => (
-										<TableTr key={lessonKey(lesson)}>
-											<TableTd>
-												{formatDate(lesson.date)}
-												{lesson.lessonNumber != null && (
-													<Text size="xs" c="dimmed">
-														урок {lesson.lessonNumber}
-													</Text>
-												)}
-												{lesson.id == null && (
-													<Badge
-														mt={4}
-														color="gray"
-														variant="light"
-														size="sm"
-													>
-														нет записи
-													</Badge>
-												)}
-											</TableTd>
-											<TableTd>{lesson.teacher.fullName}</TableTd>
-											<TableTd>{lesson.topic ?? "—"}</TableTd>
-											<TableTd>{lesson.homework ?? "—"}</TableTd>
-											<TableTd ta="center">
-												{lesson.averageGrade != null ? (
-													<Badge variant="light">
-														{lesson.averageGrade}
-													</Badge>
-												) : (
-													"—"
-												)}
-											</TableTd>
-											<TableTd>
-												<Group gap={4} wrap="nowrap">
-													<GradesButton
-														lessonId={lesson.id}
-														title={`Оценки — ${formatDate(lesson.date)}`}
-														create={
-															lesson.id == null
-																? {
-																		date: formatDateInput(
-																			lesson.date,
-																		)!,
-																		classId,
-																		subjectId,
-																		teacherId:
-																			lesson.teacher.id,
-																		scheduleSlotId:
-																			lesson.scheduleSlotId!,
-																	}
-																: undefined
-														}
-														students={students.map((student) => {
-															const grade = gradeByCell.get(
-																`${lessonKey(lesson)}:${student.id}`,
-															);
-															return {
-																studentId: student.id,
-																fullName: student.fullName,
-																value: grade?.value ?? null,
-																comment: grade?.comment ?? null,
-															};
-														})}
-													/>
-													{lesson.id != null ? (
-														<EditEntityButton
-															title={`Урок ${formatDate(lesson.date)}`}
-															fields={editFields}
-															url={`/api/journal/${lesson.id}`}
-															initial={{
-																topic: lesson.topic,
-																homework: lesson.homework,
-															}}
-														/>
-													) : (
-														<CreateEntityButton
-															title={`Урок ${formatDate(lesson.date)}`}
-															label="Изменить"
-															variant="subtle"
-															size="compact-sm"
-															fields={materializeFields}
-															url="/api/journal"
-															initial={{
-																date: formatDateInput(lesson.date),
-																classId,
-																subjectId,
-																teacherId: lesson.teacher.id,
-																scheduleSlotId:
-																	lesson.scheduleSlotId,
-															}}
-														/>
-													)}
-												</Group>
-											</TableTd>
+						{lessons.length === 0 ? (
+							<Text c="dimmed">
+								В этом периоде уроков по выбранному предмету нет — ни в расписании,
+								ни в журнале.
+							</Text>
+						) : (
+							<TableScrollContainer minWidth={760}>
+								<Table striped highlightOnHover withTableBorder>
+									<TableThead>
+										<TableTr>
+											<TableTh>Дата</TableTh>
+											<TableTh>Учитель</TableTh>
+											<TableTh>Тема</TableTh>
+											<TableTh>Домашнее задание</TableTh>
+											<TableTh ta="center">Средний за урок</TableTh>
+											<TableTh w={160} />
 										</TableTr>
-									))}
-								</TableTbody>
-							</Table>
-						</TableScrollContainer>
+									</TableThead>
+									<TableTbody>
+										{lessons.map((lesson) => (
+											<TableTr key={lessonKey(lesson)}>
+												<TableTd>
+													{formatDate(lesson.date)}
+													{lesson.lessonNumber != null && (
+														<Text size="xs" c="dimmed">
+															урок {lesson.lessonNumber}
+														</Text>
+													)}
+													{lesson.id == null && (
+														<Badge
+															mt={4}
+															color="gray"
+															variant="light"
+															size="sm"
+														>
+															нет записи
+														</Badge>
+													)}
+												</TableTd>
+												<TableTd>{lesson.teacher.fullName}</TableTd>
+												<TableTd>{lesson.topic ?? "—"}</TableTd>
+												<TableTd>{lesson.homework ?? "—"}</TableTd>
+												<TableTd ta="center">
+													{lesson.averageGrade != null ? (
+														<Badge variant="light">
+															{lesson.averageGrade}
+														</Badge>
+													) : (
+														"—"
+													)}
+												</TableTd>
+												<TableTd>
+													<Group gap={4} wrap="nowrap">
+														<GradesButton
+															lessonId={lesson.id}
+															title={`Оценки — ${formatDate(lesson.date)}`}
+															create={
+																lesson.id == null
+																	? {
+																			date: formatDateInput(
+																				lesson.date,
+																			)!,
+																			classId,
+																			subjectId,
+																			teacherId:
+																				lesson.teacher.id,
+																			scheduleSlotId:
+																				lesson.scheduleSlotId!,
+																		}
+																	: undefined
+															}
+															students={students.map((student) => {
+																const grade = gradeByCell.get(
+																	`${lessonKey(lesson)}:${student.id}`,
+																);
+																return {
+																	studentId: student.id,
+																	fullName: student.fullName,
+																	value: grade?.value ?? null,
+																	comment: grade?.comment ?? null,
+																};
+															})}
+														/>
+														{lesson.id != null ? (
+															<EditEntityButton
+																title={`Урок ${formatDate(lesson.date)}`}
+																fields={editFields}
+																url={`/api/journal/${lesson.id}`}
+																initial={{
+																	topic: lesson.topic,
+																	homework: lesson.homework,
+																}}
+															/>
+														) : (
+															<CreateEntityButton
+																title={`Урок ${formatDate(lesson.date)}`}
+																label="Изменить"
+																variant="subtle"
+																size="compact-sm"
+																fields={materializeFields}
+																url="/api/journal"
+																initial={{
+																	date: formatDateInput(
+																		lesson.date,
+																	),
+																	classId,
+																	subjectId,
+																	teacherId: lesson.teacher.id,
+																	scheduleSlotId:
+																		lesson.scheduleSlotId,
+																}}
+															/>
+														)}
+													</Group>
+												</TableTd>
+											</TableTr>
+										))}
+									</TableTbody>
+								</Table>
+							</TableScrollContainer>
+						)}
 					</Stack>
 				</Stack>
 			);
-	} else if (canEdit) {
-		content = <Text c="dimmed">Выберите класс и предмет, чтобы открыть журнал оценок.</Text>;
+		}
 	} else {
 		// Пользователь без привязки к ученику или сотруднику.
 		const entries = await listLessons({});
@@ -475,47 +720,7 @@ export default async function JournalPage(props: { searchParams: Promise<SearchP
 				)}
 			</Group>
 
-			<Group justify="space-between" wrap="wrap">
-				<Group gap="xs">
-					<LinkButton
-						href={hrefFor(addDays(monday, -7))}
-						variant="default"
-						size="compact-sm"
-					>
-						← Пред. неделя
-					</LinkButton>
-					<Text fw={600}>
-						{formatDate(monday)} – {formatDate(saturday)}
-					</Text>
-					<LinkButton
-						href={hrefFor(addDays(monday, 7))}
-						variant="default"
-						size="compact-sm"
-					>
-						След. неделя →
-					</LinkButton>
-					{!isCurrentWeek && (
-						<LinkButton href={hrefFor(today)} variant="light" size="compact-sm">
-							Текущая неделя
-						</LinkButton>
-					)}
-				</Group>
-				{canEdit && (
-					<JournalFilters
-						date={mondayStr}
-						classId={classId ? String(classId) : null}
-						subjectId={subjectId ? String(subjectId) : null}
-						classes={classes.map((cls) => ({
-							value: String(cls.id),
-							label: `${cls.name} (${cls.academicYear.name})`,
-						}))}
-						subjects={subjects.map((subject) => ({
-							value: String(subject.id),
-							label: subject.name,
-						}))}
-					/>
-				)}
-			</Group>
+			{toolbar}
 
 			{content}
 		</Stack>

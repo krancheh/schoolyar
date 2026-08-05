@@ -1,6 +1,6 @@
 import { AttendanceStatus } from "@prisma/client";
 import { prisma } from "@shared/lib/db";
-import { ServiceError, parseDate } from "@shared/lib/api";
+import { ServiceError, isoDayOfWeek, parseDate } from "@shared/lib/api";
 import { addDays, formatDateInput } from "@shared/lib/format";
 
 // Средний балл всегда считается по оценкам, в БД не хранится.
@@ -170,28 +170,37 @@ export type GradeGridLesson = {
 export type GradeGridStudent = {
 	id: number;
 	fullName: string;
-	// итоговый средний по предмету за учебный период
+	// средний балл по предмету за выбранный период (считается, не хранится)
 	termAverage: number | null;
+	// итоговая оценка за период, выставленная учителем
+	termGrade: number | null;
+	// годовая («итоговая») оценка
+	yearGrade: number | null;
 };
 
-// Сетка журнала для учителя: ученики класса × уроки предмета за неделю,
-// плюс итоговый средний балл каждого ученика за текущую четверть.
-// Уроки недели — объединение расписания и фактических записей журнала:
-// запись мержится со слотом по паре (scheduleSlotId, дата), уроки из
-// расписания без записи возвращаются с id = null.
+// Сетка журнала для учителя: ученики класса × все уроки предмета за учебный
+// период (четверть/триместр/семестр), плюс средний балл и итоговые оценки.
+// Уроки — объединение расписания и фактических записей журнала: запись
+// мержится со слотом по паре (scheduleSlotId, дата), уроки из расписания
+// без записи возвращаются с id = null.
 export async function getGradeGrid(
 	classId: number,
 	subjectId: number,
-	weekStart: Date,
+	termId: number,
 ): Promise<{ students: GradeGridStudent[]; lessons: GradeGridLesson[] }> {
-	const { from, to } = weekRange(weekStart);
 	const cls = await prisma.class.findUnique({
 		where: { id: classId },
 		select: { academicYearId: true },
 	});
 	if (!cls) throw new ServiceError("Class not found", 404);
+	const term = await prisma.term.findUnique({ where: { id: termId } });
+	if (!term || term.academicYearId !== cls.academicYearId) {
+		throw new ServiceError("Term not found", 404);
+	}
+	const from = term.startDate;
+	const to = term.endDate;
 
-	const [students, lessons, slots, range] = await Promise.all([
+	const [students, lessons, slots, termGradeRows, yearGradeRows] = await Promise.all([
 		prisma.student.findMany({
 			where: { classId, isActive: true },
 			orderBy: { fullName: "asc" },
@@ -206,20 +215,22 @@ export async function getGradeGrid(
 			},
 		}),
 		prisma.scheduleSlot.findMany({
-			where: {
-				classId,
-				subjectId,
-				term: { startDate: { lte: to }, endDate: { gte: from } },
-			},
+			where: { classId, subjectId, termId },
 			select: {
 				id: true,
 				dayOfWeek: true,
 				lessonNumber: true,
 				teacher: { select: { id: true, fullName: true } },
-				term: { select: { startDate: true, endDate: true } },
 			},
 		}),
-		termRangeForWeek(cls.academicYearId, from, to),
+		prisma.termGrade.findMany({
+			where: { termId, subjectId },
+			select: { studentId: true, value: true },
+		}),
+		prisma.yearGrade.findMany({
+			where: { academicYearId: cls.academicYearId, subjectId },
+			select: { studentId: true, value: true },
+		}),
 	]);
 
 	// Замены недели: в журнале показываем фактического учителя.
@@ -244,7 +255,7 @@ export async function getGradeGrid(
 		]),
 	);
 
-	// Плановые уроки недели из расписания (weekStart — понедельник).
+	// Плановые уроки периода из расписания.
 	type PlannedLesson = {
 		slotId: number;
 		date: Date;
@@ -252,12 +263,10 @@ export async function getGradeGrid(
 		teacher: { id: number; fullName: string };
 	};
 	const planned = new Map<string, PlannedLesson>();
-	for (let index = 0; index < WEEK_DAYS_SHOWN; index++) {
-		const day = addDays(from, index);
-		const dayOfWeek = index + 1;
+	for (let day = from; day <= to; day = addDays(day, 1)) {
+		const dayOfWeek = isoDayOfWeek(day);
 		for (const slot of slots) {
 			if (slot.dayOfWeek !== dayOfWeek) continue;
-			if (slot.term.startDate > day || slot.term.endDate < day) continue;
 			const key = `${slot.id}|${formatDateInput(day)}`;
 			planned.set(key, {
 				slotId: slot.id,
@@ -268,24 +277,23 @@ export async function getGradeGrid(
 		}
 	}
 
+	// Средний за период — по всем оценкам уроков периода (уже выбраны выше).
 	const termAverage = new Map<number, number>();
-	if (range) {
-		const termGrades = await prisma.grade.findMany({
-			where: {
-				lesson: { classId, subjectId, date: { gte: range.from, lte: range.to } },
-			},
-			select: { studentId: true, value: true },
-		});
+	{
 		const byStudent = new Map<number, { value: number }[]>();
-		for (const grade of termGrades) {
-			const list = byStudent.get(grade.studentId) ?? [];
-			list.push(grade);
-			byStudent.set(grade.studentId, list);
+		for (const lesson of lessons) {
+			for (const grade of lesson.grades) {
+				const list = byStudent.get(grade.studentId) ?? [];
+				list.push(grade);
+				byStudent.set(grade.studentId, list);
+			}
 		}
 		for (const [studentId, values] of byStudent) {
 			termAverage.set(studentId, averageOf(values)!);
 		}
 	}
+	const termGradeByStudent = new Map(termGradeRows.map((row) => [row.studentId, row.value]));
+	const yearGradeByStudent = new Map(yearGradeRows.map((row) => [row.studentId, row.value]));
 
 	// Фактические записи журнала «закрывают» свой слот расписания.
 	const entries: GradeGridLesson[] = lessons.map((lesson) => {
@@ -328,9 +336,221 @@ export async function getGradeGrid(
 		students: students.map((student) => ({
 			...student,
 			termAverage: termAverage.get(student.id) ?? null,
+			termGrade: termGradeByStudent.get(student.id) ?? null,
+			yearGrade: yearGradeByStudent.get(student.id) ?? null,
 		})),
 		lessons: entries,
 	};
+}
+
+// Учебные периоды учебного года класса (для селекта периода в журнале).
+export async function getClassTerms(classId: number) {
+	const cls = await prisma.class.findUnique({
+		where: { id: classId },
+		select: {
+			academicYearId: true,
+			academicYear: {
+				select: {
+					terms: {
+						select: {
+							id: true,
+							type: true,
+							number: true,
+							startDate: true,
+							endDate: true,
+						},
+						orderBy: { startDate: "asc" },
+					},
+				},
+			},
+		},
+	});
+	if (!cls) throw new ServiceError("Class not found", 404);
+	return { academicYearId: cls.academicYearId, terms: cls.academicYear.terms };
+}
+
+export type StudentTermSubject = {
+	subject: { id: number; name: string };
+	// все оценки за период по датам уроков
+	grades: { value: number; comment: string | null; date: Date }[];
+	// итоговая за период и годовая, выставленные учителем
+	termGrade: number | null;
+	yearGrade: number | null;
+};
+
+// Сводка ученика за учебный период: по каждому предмету (из расписания
+// периода и фактических уроков) — все оценки, итоговая за период и годовая.
+export async function getStudentTermSummary(
+	classId: number,
+	studentId: number,
+	termId: number,
+): Promise<StudentTermSubject[]> {
+	const cls = await prisma.class.findUnique({
+		where: { id: classId },
+		select: { academicYearId: true },
+	});
+	if (!cls) return [];
+	const term = await prisma.term.findUnique({ where: { id: termId } });
+	if (!term || term.academicYearId !== cls.academicYearId) return [];
+
+	const [grades, slotSubjects, lessonSubjects, termGradeRows, yearGradeRows] = await Promise.all([
+		prisma.grade.findMany({
+			where: {
+				studentId,
+				lesson: {
+					classId,
+					date: { gte: term.startDate, lte: term.endDate },
+				},
+			},
+			select: {
+				value: true,
+				comment: true,
+				lesson: {
+					select: {
+						date: true,
+						subject: { select: { id: true, name: true } },
+					},
+				},
+			},
+			orderBy: [{ lesson: { date: "asc" } }, { id: "asc" }],
+		}),
+		prisma.scheduleSlot.findMany({
+			where: { classId, termId },
+			select: { subject: { select: { id: true, name: true } } },
+			distinct: ["subjectId"],
+		}),
+		prisma.lesson.findMany({
+			where: { classId, date: { gte: term.startDate, lte: term.endDate } },
+			select: { subject: { select: { id: true, name: true } } },
+			distinct: ["subjectId"],
+		}),
+		prisma.termGrade.findMany({
+			where: { studentId, termId },
+			select: { subjectId: true, value: true },
+		}),
+		prisma.yearGrade.findMany({
+			where: { studentId, academicYearId: cls.academicYearId },
+			select: { subjectId: true, value: true },
+		}),
+	]);
+
+	const subjects = new Map<number, { id: number; name: string }>();
+	for (const { subject } of [...slotSubjects, ...lessonSubjects]) {
+		subjects.set(subject.id, subject);
+	}
+	const gradesBySubject = new Map<number, StudentTermSubject["grades"]>();
+	for (const grade of grades) {
+		subjects.set(grade.lesson.subject.id, grade.lesson.subject);
+		const list = gradesBySubject.get(grade.lesson.subject.id) ?? [];
+		list.push({ value: grade.value, comment: grade.comment, date: grade.lesson.date });
+		gradesBySubject.set(grade.lesson.subject.id, list);
+	}
+	const termGradeBySubject = new Map(termGradeRows.map((row) => [row.subjectId, row.value]));
+	const yearGradeBySubject = new Map(yearGradeRows.map((row) => [row.subjectId, row.value]));
+
+	return [...subjects.values()]
+		.sort((a, b) => a.name.localeCompare(b.name, "ru"))
+		.map((subject) => ({
+			subject,
+			grades: gradesBySubject.get(subject.id) ?? [],
+			termGrade: termGradeBySubject.get(subject.id) ?? null,
+			yearGrade: yearGradeBySubject.get(subject.id) ?? null,
+		}));
+}
+
+export type FinalGradeInput = {
+	studentId?: number;
+	value?: number;
+};
+
+function validateFinalGrades(grades: FinalGradeInput[]) {
+	if (grades.length === 0) throw new ServiceError("grades array is required");
+	for (const grade of grades) {
+		if (!grade.studentId) throw new ServiceError("Each grade needs studentId");
+		if (!Number.isInteger(grade.value) || grade.value! < 1 || grade.value! > 5) {
+			throw new ServiceError("Each grade value must be an integer from 1 to 5");
+		}
+	}
+}
+
+async function ensureStudents(studentIds: number[]) {
+	const students = await prisma.student.findMany({
+		where: { id: { in: studentIds } },
+		select: { id: true },
+	});
+	if (students.length !== new Set(studentIds).size) {
+		throw new ServiceError("One or more students not found", 404);
+	}
+}
+
+// Итоговые оценки за учебный период (upsert по ученик+предмет+период).
+export async function setTermGrades(termId: number, subjectId: number, grades: FinalGradeInput[]) {
+	validateFinalGrades(grades);
+	const term = await prisma.term.findUnique({ where: { id: termId }, select: { id: true } });
+	if (!term) throw new ServiceError("Term not found", 404);
+	const subject = await prisma.subject.findUnique({
+		where: { id: subjectId },
+		select: { id: true },
+	});
+	if (!subject) throw new ServiceError("Subject not found", 404);
+	await ensureStudents(grades.map((grade) => grade.studentId!));
+
+	return prisma.$transaction(
+		grades.map((grade) =>
+			prisma.termGrade.upsert({
+				where: {
+					studentId_subjectId_termId: {
+						studentId: grade.studentId!,
+						subjectId,
+						termId,
+					},
+				},
+				create: { studentId: grade.studentId!, subjectId, termId, value: grade.value! },
+				update: { value: grade.value! },
+			}),
+		),
+	);
+}
+
+// Годовые («итоговые») оценки (upsert по ученик+предмет+учебный год).
+export async function setYearGrades(
+	academicYearId: number,
+	subjectId: number,
+	grades: FinalGradeInput[],
+) {
+	validateFinalGrades(grades);
+	const year = await prisma.academicYear.findUnique({
+		where: { id: academicYearId },
+		select: { id: true },
+	});
+	if (!year) throw new ServiceError("Academic year not found", 404);
+	const subject = await prisma.subject.findUnique({
+		where: { id: subjectId },
+		select: { id: true },
+	});
+	if (!subject) throw new ServiceError("Subject not found", 404);
+	await ensureStudents(grades.map((grade) => grade.studentId!));
+
+	return prisma.$transaction(
+		grades.map((grade) =>
+			prisma.yearGrade.upsert({
+				where: {
+					studentId_subjectId_academicYearId: {
+						studentId: grade.studentId!,
+						subjectId,
+						academicYearId,
+					},
+				},
+				create: {
+					studentId: grade.studentId!,
+					subjectId,
+					academicYearId,
+					value: grade.value!,
+				},
+				update: { value: grade.value! },
+			}),
+		),
+	);
 }
 
 export async function getLesson(lessonId: number) {
