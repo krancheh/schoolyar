@@ -598,16 +598,6 @@ export default async function JournalPage(props: { searchParams: Promise<SearchP
 															урок {lesson.lessonNumber}
 														</Text>
 													)}
-													{lesson.id == null && (
-														<Badge
-															mt={4}
-															color="gray"
-															variant="light"
-															size="sm"
-														>
-															нет записи
-														</Badge>
-													)}
 												</TableTd>
 												<TableTd>{lesson.teacher.fullName}</TableTd>
 												<TableTd>{lesson.topic ?? "—"}</TableTd>
