@@ -42,6 +42,7 @@ import { GradesButton } from "@features/journal/GradesButton";
 import { JournalFilters } from "@features/journal/JournalFilters";
 import { TermSelect } from "@features/journal/TermSelect";
 import { FinalGradesButton } from "@features/journal/FinalGradesButton";
+import { GRADE_INVALID_REASON, GRADE_SICK_REASON, GRADE_VALID_REASON } from "@shared/lib/grades";
 
 export const metadata: Metadata = { title: "Журнал — Школьный портал" };
 
@@ -62,8 +63,9 @@ function gradeColor(value: string): string {
 			return "green";
 		case "3":
 			return "green";
-		case "н":
-		case "у":
+		case GRADE_INVALID_REASON:
+		case GRADE_VALID_REASON:
+		case GRADE_SICK_REASON:
 			return "gray";
 		default:
 			return "red";
