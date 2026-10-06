@@ -54,11 +54,20 @@ function todayISO(): string {
 }
 
 // Цвет бейджа по пятибалльной шкале.
-function gradeColor(value: number): string {
-	if (value >= 5) return "green";
-	if (value === 4) return "lime";
-	if (value === 3) return "yellow";
-	return "red";
+function gradeColor(value: string): string {
+	switch (value) {
+		case "5":
+			return "green";
+		case "4":
+			return "green";
+		case "3":
+			return "green";
+		case "н":
+		case "у":
+			return "gray";
+		default:
+			return "red";
+	}
 }
 
 type TermOption = { id: number; type: string; number: number; startDate: Date; endDate: Date };
@@ -457,7 +466,7 @@ export default async function JournalPage(props: { searchParams: Promise<SearchP
 				lesson.id != null
 					? `l${lesson.id}`
 					: `s${lesson.scheduleSlotId}:${formatDateInput(lesson.date)}`;
-			const gradeByCell = new Map<string, { value: number; comment: string | null }>();
+			const gradeByCell = new Map<string, { value: string; comment: string | null }>();
 			for (const lesson of lessons) {
 				for (const grade of lesson.grades) {
 					gradeByCell.set(`${lessonKey(lesson)}:${grade.studentId}`, grade);
@@ -472,13 +481,7 @@ export default async function JournalPage(props: { searchParams: Promise<SearchP
 							academicYearId={classTerms.academicYearId}
 							subjectId={subjectId}
 							termName={termName}
-							students={students.map((student) => ({
-								studentId: student.id,
-								fullName: student.fullName,
-								termAverage: student.termAverage,
-								termValue: student.termGrade,
-								yearValue: student.yearGrade,
-							}))}
+							students={students}
 						/>
 					</Group>
 					<TableScrollContainer minWidth={560}>
@@ -566,10 +569,6 @@ export default async function JournalPage(props: { searchParams: Promise<SearchP
 
 					<Stack gap="xs">
 						<Title order={4}>Уроки периода</Title>
-						<Text size="xs" c="dimmed">
-							Показаны все уроки из расписания. Для урока с пометкой «нет записи»
-							запись журнала создаётся автоматически при сохранении оценок или темы.
-						</Text>
 						{lessons.length === 0 ? (
 							<Text c="dimmed">
 								В этом периоде уроков по выбранному предмету нет — ни в расписании,
@@ -590,7 +589,14 @@ export default async function JournalPage(props: { searchParams: Promise<SearchP
 									</TableThead>
 									<TableTbody>
 										{lessons.map((lesson) => (
-											<TableTr key={lessonKey(lesson)}>
+											<TableTr
+												bg={
+													formatDateInput(lesson.date) === todayISO()
+														? "var(--mantine-color-blue-light)"
+														: undefined
+												}
+												key={lessonKey(lesson)}
+											>
 												<TableTd>
 													{formatDate(lesson.date)}
 													{lesson.lessonNumber != null && (

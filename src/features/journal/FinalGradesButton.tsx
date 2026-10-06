@@ -4,29 +4,21 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Alert, Button, Group, Modal, Select, Stack, Text } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
-
-export type FinalGradeRow = {
-	studentId: number;
-	fullName: string;
-	// средний за период — подсказка учителю рядом с селектами
-	termAverage: number | null;
-	termValue: number | null;
-	yearValue: number | null;
-};
+import { GradeGridStudent } from "@entities/journal/service";
 
 type RowState = { term: string; year: string };
 
-const GRADE_OPTIONS = ["5", "4", "3", "2", "1"].map((value) => ({
+const GRADE_OPTIONS = ["5", "4", "3", "2"].map((value) => ({
 	value,
 	label: value,
 }));
 
-function toRowState(students: FinalGradeRow[]): Record<number, RowState> {
+function toRowState(students: GradeGridStudent[]): Record<number, RowState> {
 	const state: Record<number, RowState> = {};
 	for (const student of students) {
-		state[student.studentId] = {
-			term: student.termValue == null ? "" : String(student.termValue),
-			year: student.yearValue == null ? "" : String(student.yearValue),
+		state[student.id] = {
+			term: student.termGrade == null ? "" : student.termGrade,
+			year: student.yearGrade == null ? "" : student.yearGrade,
 		};
 	}
 	return state;
@@ -45,7 +37,7 @@ export function FinalGradesButton({
 	academicYearId: number;
 	subjectId: number;
 	termName: string;
-	students: FinalGradeRow[];
+	students: GradeGridStudent[];
 }) {
 	const router = useRouter();
 	const [opened, { open, close }] = useDisclosure(false);
@@ -71,16 +63,16 @@ export function FinalGradesButton({
 		setError(null);
 
 		const termGrades = students
-			.filter((student) => rows[student.studentId]?.term)
+			.filter((student) => rows[student.id]?.term)
 			.map((student) => ({
-				studentId: student.studentId,
-				value: Number(rows[student.studentId].term),
+				studentId: student.id,
+				value: rows[student.id].term,
 			}));
 		const yearGrades = students
-			.filter((student) => rows[student.studentId]?.year)
+			.filter((student) => rows[student.id]?.year)
 			.map((student) => ({
-				studentId: student.studentId,
-				value: Number(rows[student.studentId].year),
+				studentId: student.id,
+				value: rows[student.id].year,
 			}));
 		if (termGrades.length === 0 && yearGrades.length === 0) {
 			setError("Выберите хотя бы одну оценку");
@@ -161,7 +153,7 @@ export function FinalGradesButton({
 								</Text>
 							</Group>
 							{students.map((student) => (
-								<Group key={student.studentId} wrap="nowrap">
+								<Group key={student.id} wrap="nowrap">
 									<Text size="sm" style={{ flex: 1 }}>
 										{student.fullName}
 										{student.termAverage != null && (
@@ -173,9 +165,9 @@ export function FinalGradesButton({
 									<Select
 										aria-label={`За период — ${student.fullName}`}
 										data={GRADE_OPTIONS}
-										value={rows[student.studentId]?.term || null}
+										value={rows[student.id]?.term || null}
 										onChange={(value) =>
-											setRow(student.studentId, { term: value ?? "" })
+											setRow(student.id, { term: value ?? "" })
 										}
 										placeholder="—"
 										w={96}
@@ -184,9 +176,9 @@ export function FinalGradesButton({
 									<Select
 										aria-label={`Годовая — ${student.fullName}`}
 										data={GRADE_OPTIONS}
-										value={rows[student.studentId]?.year || null}
+										value={rows[student.id]?.year || null}
 										onChange={(value) =>
-											setRow(student.studentId, { year: value ?? "" })
+											setRow(student.id, { year: value ?? "" })
 										}
 										placeholder="—"
 										w={96}

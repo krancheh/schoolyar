@@ -1,0 +1,8 @@
+-- AlterTable
+ALTER TABLE "Grade" ALTER COLUMN "value" SET DATA TYPE TEXT;
+
+-- AlterTable
+ALTER TABLE "TermGrade" ALTER COLUMN "value" SET DATA TYPE TEXT;
+
+-- AlterTable
+ALTER TABLE "YearGrade" ALTER COLUMN "value" SET DATA TYPE TEXT;

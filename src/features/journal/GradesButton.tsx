@@ -4,17 +4,18 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Alert, Button, Group, Modal, Select, Stack, Text, TextInput } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
+import { GRADE_OPTIONS } from "@shared/lib/grades";
 
 export type GradeRow = {
 	studentId: number;
 	fullName: string;
-	value: number | null;
+	value: string | null;
 	comment: string | null;
 };
 
 type RowState = { value: string; comment: string };
 
-const GRADE_OPTIONS = ["5", "4", "3", "2", "1"].map((value) => ({
+const gradeOptions = GRADE_OPTIONS.map((value) => ({
 	value,
 	label: value,
 }));
@@ -83,7 +84,7 @@ export function GradesButton({
 			.filter((student) => rows[student.studentId]?.value)
 			.map((student) => ({
 				studentId: student.studentId,
-				value: Number(rows[student.studentId].value),
+				value: rows[student.studentId].value,
 				comment: rows[student.studentId].comment.trim() || undefined,
 			}));
 		if (grades.length === 0) {
@@ -160,7 +161,7 @@ export function GradesButton({
 										{student.fullName}
 									</Text>
 									<Select
-										data={GRADE_OPTIONS}
+										data={gradeOptions}
 										value={rows[student.studentId]?.value || null}
 										onChange={(value) =>
 											setRow(student.studentId, { value: value ?? "" })

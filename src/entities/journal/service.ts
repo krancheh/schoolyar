@@ -2,13 +2,29 @@ import { AttendanceStatus } from "@prisma/client";
 import { prisma } from "@shared/lib/db";
 import { ServiceError, isoDayOfWeek, parseDate } from "@shared/lib/api";
 import { addDays, formatDateInput } from "@shared/lib/format";
+import { GRADE_OPTIONS } from "@shared/lib/grades";
+
+interface IGradeValue {
+	value: string;
+}
+
+/** Returns filtered grades with only numbers. */
+export const getNumberGrades = (grades: IGradeValue[] = []) => {
+	return grades.filter((v) => !isNaN(Number(v.value)));
+};
 
 // Средний балл всегда считается по оценкам, в БД не хранится.
-function averageOf(grades: { value: number }[]): number | null {
-	if (grades.length === 0) return null;
+function averageOf(grades: IGradeValue[]): number | null {
+	const filteredGrades = getNumberGrades(grades);
+
+	if (filteredGrades.length === 0) return null;
+
 	return (
-		Math.round((grades.reduce((sum, grade) => sum + grade.value, 0) / grades.length) * 100) /
-		100
+		Math.round(
+			(filteredGrades.reduce((sum, grade) => sum + Number(grade.value), 0) /
+				filteredGrades.length) *
+				100,
+		) / 100
 	);
 }
 
@@ -86,7 +102,7 @@ export type StudentWeekLesson = {
 	teacher: { id: number; fullName: string };
 	topic: string | null;
 	homework: string | null;
-	grade: { value: number; comment: string | null } | null;
+	grade: { value: string; comment: string | null } | null;
 	// средний балл ученика по этому предмету за учебный период
 	subjectAverage: number | null;
 };
@@ -127,7 +143,7 @@ export async function getStudentWeekJournal(
 			},
 			select: { value: true, lesson: { select: { subjectId: true } } },
 		});
-		const bySubject = new Map<number, { value: number }[]>();
+		const bySubject = new Map<number, { value: string }[]>();
 		for (const grade of termGrades) {
 			const list = bySubject.get(grade.lesson.subjectId) ?? [];
 			list.push(grade);
@@ -164,7 +180,7 @@ export type GradeGridLesson = {
 	homework: string | null;
 	teacher: { id: number; fullName: string };
 	averageGrade: number | null;
-	grades: { studentId: number; value: number; comment: string | null }[];
+	grades: { studentId: number; value: string; comment: string | null }[];
 };
 
 export type GradeGridStudent = {
@@ -173,9 +189,9 @@ export type GradeGridStudent = {
 	// средний балл по предмету за выбранный период (считается, не хранится)
 	termAverage: number | null;
 	// итоговая оценка за период, выставленная учителем
-	termGrade: number | null;
+	termGrade: string | null;
 	// годовая («итоговая») оценка
-	yearGrade: number | null;
+	yearGrade: string | null;
 };
 
 // Сетка журнала для учителя: ученики класса × все уроки предмета за учебный
@@ -280,7 +296,7 @@ export async function getGradeGrid(
 	// Средний за период — по всем оценкам уроков периода (уже выбраны выше).
 	const termAverage = new Map<number, number>();
 	{
-		const byStudent = new Map<number, { value: number }[]>();
+		const byStudent = new Map<number, { value: string }[]>();
 		for (const lesson of lessons) {
 			for (const grade of lesson.grades) {
 				const list = byStudent.get(grade.studentId) ?? [];
@@ -372,10 +388,10 @@ export async function getClassTerms(classId: number) {
 export type StudentTermSubject = {
 	subject: { id: number; name: string };
 	// все оценки за период по датам уроков
-	grades: { value: number; comment: string | null; date: Date }[];
+	grades: { value: string; comment: string | null; date: Date }[];
 	// итоговая за период и годовая, выставленные учителем
-	termGrade: number | null;
-	yearGrade: number | null;
+	termGrade: string | null;
+	yearGrade: string | null;
 };
 
 // Сводка ученика за учебный период: по каждому предмету (из расписания
@@ -460,15 +476,15 @@ export async function getStudentTermSummary(
 
 export type FinalGradeInput = {
 	studentId?: number;
-	value?: number;
+	value?: string;
 };
 
 function validateFinalGrades(grades: FinalGradeInput[]) {
 	if (grades.length === 0) throw new ServiceError("grades array is required");
 	for (const grade of grades) {
 		if (!grade.studentId) throw new ServiceError("Each grade needs studentId");
-		if (!Number.isInteger(grade.value) || grade.value! < 1 || grade.value! > 5) {
-			throw new ServiceError("Each grade value must be an integer from 1 to 5");
+		if (!GRADE_OPTIONS.includes(grade.value!)) {
+			throw new ServiceError(`Each grade value must be an integer from 2 to 5`);
 		}
 	}
 }
@@ -654,7 +670,7 @@ async function ensureLessonAndStudents(lessonId: number, studentIds: number[]) {
 
 export type GradeInput = {
 	studentId?: number;
-	value?: number;
+	value?: string;
 	comment?: string;
 };
 
@@ -664,8 +680,10 @@ export async function setGrades(lessonId: number, grades: GradeInput[]) {
 
 	for (const grade of grades) {
 		if (!grade.studentId) throw new ServiceError("Each grade needs studentId");
-		if (!Number.isInteger(grade.value) || grade.value! < 1 || grade.value! > 5) {
-			throw new ServiceError("Each grade value must be an integer from 1 to 5");
+		if (!GRADE_OPTIONS.includes(grade.value!)) {
+			throw new ServiceError(
+				`Each grade value must be an integer from 2 to 5, or "н" and "у"`,
+			);
 		}
 	}
 

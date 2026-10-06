@@ -236,7 +236,7 @@ model TermGrade {
   subject   Subject @relation(fields: [subjectId], references: [id])
   termId    Int
   term      Term    @relation(fields: [termId], references: [id], onDelete: Cascade)
-  value     Int
+  value     String
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -253,7 +253,7 @@ model YearGrade {
   subject        Subject      @relation(fields: [subjectId], references: [id])
   academicYearId Int
   academicYear   AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
-  value          Int
+  value          String
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -267,7 +267,7 @@ model Grade {
   lesson    Lesson  @relation(fields: [lessonId], references: [id], onDelete: Cascade)
   studentId Int
   student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  value     Int
+  value     String
   comment   String?
 
   createdAt DateTime @default(now())
