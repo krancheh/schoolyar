@@ -15,10 +15,7 @@ async function classWithStudents(classId: number) {
 }
 
 // Посещаемость класса за период: разбивка по статусам на ученика.
-export async function attendanceReport(
-	classId: number,
-	period: { from?: Date; to?: Date } = {}
-) {
+export async function attendanceReport(classId: number, period: { from?: Date; to?: Date } = {}) {
 	const { from, to } = period;
 	const cls = await classWithStudents(classId);
 
@@ -40,9 +37,10 @@ export async function attendanceReport(
 	});
 
 	const emptyBreakdown = () =>
-		Object.fromEntries(
-			Object.values(AttendanceStatus).map((status) => [status, 0])
-		) as Record<AttendanceStatus, number>;
+		Object.fromEntries(Object.values(AttendanceStatus).map((status) => [status, 0])) as Record<
+			AttendanceStatus,
+			number
+		>;
 
 	const byStudent = new Map(
 		cls.students.map((student) => [
@@ -53,7 +51,7 @@ export async function attendanceReport(
 				totalMarked: 0,
 				breakdown: emptyBreakdown(),
 			},
-		])
+		]),
 	);
 
 	for (const record of records) {
@@ -68,9 +66,7 @@ export async function attendanceReport(
 			...row,
 			attendancePercent:
 				row.totalMarked > 0
-					? round1(
-							(row.breakdown.PRESENT + row.breakdown.LATE) / row.totalMarked
-						)
+					? round1((row.breakdown.PRESENT + row.breakdown.LATE) / row.totalMarked)
 					: null,
 		}))
 		.sort((a, b) => a.fullName.localeCompare(b.fullName, "ru"));
@@ -83,10 +79,7 @@ export async function attendanceReport(
 }
 
 // Успеваемость: средний балл по предметам и общий, по ученикам класса.
-export async function performanceReport(
-	classId: number,
-	period: { from?: Date; to?: Date } = {}
-) {
+export async function performanceReport(classId: number, period: { from?: Date; to?: Date } = {}) {
 	const { from, to } = period;
 	const cls = await classWithStudents(classId);
 
@@ -126,7 +119,9 @@ export async function performanceReport(
 			stats = { subjectName: subject.name, sum: 0, count: 0 };
 			subjects.set(subject.id, stats);
 		}
-		stats.sum += grade.value;
+		if (!isNaN(Number(grade.value))) {
+			stats.sum += Number(grade.value);
+		}
 		stats.count += 1;
 	}
 
@@ -145,7 +140,7 @@ export async function performanceReport(
 						averageGrade: round2(stats.sum / stats.count),
 						gradesCount: stats.count,
 					};
-				}
+				},
 			);
 
 			return {
@@ -167,10 +162,7 @@ export async function performanceReport(
 
 // Заполнение журнала: сколько уроков по расписанию должно было пройти
 // за период и сколько из них записано с темой и д/з.
-export async function journalCompletionReport(
-	termId: number,
-	filters: { classId?: number } = {}
-) {
+export async function journalCompletionReport(termId: number, filters: { classId?: number } = {}) {
 	const { classId } = filters;
 
 	const term = await prisma.term.findUnique({ where: { id: termId } });
@@ -266,15 +258,13 @@ export async function journalCompletionReport(
 				withTopic: facts.withTopic,
 				withHomework: facts.withHomework,
 				completionPercent:
-					row.expectedLessons > 0
-						? round1(facts.withTopic / row.expectedLessons)
-						: null,
+					row.expectedLessons > 0 ? round1(facts.withTopic / row.expectedLessons) : null,
 			};
 		})
 		.sort(
 			(a, b) =>
 				a.class.name.localeCompare(b.class.name, "ru") ||
-				a.subject.name.localeCompare(b.subject.name, "ru")
+				a.subject.name.localeCompare(b.subject.name, "ru"),
 		);
 
 	return {
