@@ -7,8 +7,10 @@ import {
 	Button,
 	type ButtonProps,
 	Checkbox,
+	Group,
 	Modal,
 	PasswordInput,
+	Radio,
 	Select,
 	Stack,
 	TextInput,
@@ -23,7 +25,16 @@ export type FieldOption = { value: string; label: string };
 export type EntityField = {
 	name: string;
 	label: string;
-	type?: "text" | "number" | "date" | "time" | "password" | "select" | "checkbox" | "hidden";
+	type?:
+		| "text"
+		| "number"
+		| "date"
+		| "time"
+		| "password"
+		| "select"
+		| "checkbox"
+		| "hidden"
+		| "radio";
 	required?: boolean;
 	// значение отправляется числом (id из селектов, номера)
 	numeric?: boolean;
@@ -31,11 +42,18 @@ export type EntityField = {
 	nullable?: boolean;
 	options?: FieldOption[];
 	description?: string;
+	// поле показывается и отправляется только когда другое поле имеет нужное значение
+	showWhen?: { field: string; value: string };
 };
 
 export type EntityInitial = Record<string, string | number | boolean | null>;
 
 type FormValues = Record<string, string | boolean>;
+
+function isVisible(field: EntityField, values: FormValues): boolean {
+	if (!field.showWhen) return true;
+	return String(values[field.showWhen.field] ?? "") === field.showWhen.value;
+}
 
 function toFormValues(fields: EntityField[], initial?: EntityInitial): FormValues {
 	const values: FormValues = {};
@@ -94,6 +112,7 @@ export function EntityFormModal({
 
 		const payload: Record<string, unknown> = {};
 		for (const field of fields) {
+			if (!isVisible(field, values)) continue;
 			const value = values[field.name];
 			if (field.type === "checkbox") {
 				payload[field.name] = !!value;
@@ -141,7 +160,7 @@ export function EntityFormModal({
 					)}
 
 					{fields.map((field) => {
-						if (field.type === "hidden") return null;
+						if (field.type === "hidden" || !isVisible(field, values)) return null;
 						if (field.type === "checkbox") {
 							return (
 								<Checkbox
@@ -212,6 +231,24 @@ export function EntityFormModal({
 									onChange={(event) => set(field.name, event.currentTarget.value)}
 									required={field.required}
 								/>
+							);
+						}
+						if (field.type === "radio") {
+							return (
+								<Radio.Group
+									key={field.name}
+									label={field.label}
+									description={field.description}
+									value={String(values[field.name] ?? "")}
+									onChange={(value) => set(field.name, value)}
+									required={field.required}
+								>
+									<Group mt={field.description ? "xs" : undefined}>
+										{(field.options ?? []).map(({ label, value }) => (
+											<Radio key={value} value={value} label={label} />
+										))}
+									</Group>
+								</Radio.Group>
 							);
 						}
 						return (

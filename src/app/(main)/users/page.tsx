@@ -47,10 +47,22 @@ export default async function UsersPage() {
 			description: "Не короче 8 символов",
 		},
 		{
+			name: "role",
+			label: "Роль",
+			type: "radio",
+			required: true,
+			options: [
+				{ label: "Ученик", value: "student" },
+				{ label: "Сотрудник", value: "employee" },
+			],
+		},
+		{
 			name: "employeeId",
-			label: "Привязать к сотруднику",
+			label: "Сотрудник",
 			type: "select",
 			numeric: true,
+			required: true,
+			showWhen: { field: "role", value: "employee" },
 			options: employees.map((employee) => ({
 				value: String(employee.id),
 				label: employee.fullName,
@@ -58,10 +70,11 @@ export default async function UsersPage() {
 		},
 		{
 			name: "studentId",
-			label: "Привязать к ученику",
+			label: "Ученик",
 			type: "select",
 			numeric: true,
-			description: "Либо сотрудник, либо ученик — не оба сразу",
+			required: true,
+			showWhen: { field: "role", value: "student" },
 			options: students.map((student) => ({
 				value: String(student.id),
 				label: `${student.fullName}${student.class ? ` (${student.class.name})` : ""}`,
@@ -76,6 +89,7 @@ export default async function UsersPage() {
 				<CreateEntityButton
 					title="Новая учётная запись"
 					fields={registerFields}
+					initial={{ role: "student" }}
 					url="/api/auth/register"
 				/>
 			</Group>
