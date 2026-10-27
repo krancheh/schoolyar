@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { jsonError, parseBody, serviceErrorResponse } from "@shared/lib/api";
 import { requireManager } from "@shared/lib/auth";
-import { UpdateBellInput, updateBell } from "@entities/bell-schedule/service";
+import { UpdateBellInput, deleteBell, updateBell } from "@entities/bell-schedule/service";
 
 export async function PATCH(request: Request, ctx: RouteContext<"/api/bells/[id]">) {
 	const auth = await requireManager();
@@ -16,6 +16,22 @@ export async function PATCH(request: Request, ctx: RouteContext<"/api/bells/[id]
 	try {
 		const bell = await updateBell(bellId, body ?? {});
 		return NextResponse.json({ bell });
+	} catch (error) {
+		return serviceErrorResponse(error);
+	}
+}
+
+export async function DELETE(_request: Request, ctx: RouteContext<"/api/bells/[id]">) {
+	const auth = await requireManager();
+	if (auth instanceof NextResponse) return auth;
+
+	const { id } = await ctx.params;
+	const bellId = Number(id);
+	if (!Number.isInteger(bellId)) return jsonError("Invalid id");
+
+	try {
+		await deleteBell(bellId);
+		return NextResponse.json({ ok: true });
 	} catch (error) {
 		return serviceErrorResponse(error);
 	}

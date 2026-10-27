@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@shared/lib/db";
-import { ServiceError } from "@shared/lib/api";
+import { ServiceError, toDeleteError } from "@shared/lib/api";
 
 // "HH:MM", 00:00–23:59; строки такого вида корректно сравниваются лексикографически.
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -98,5 +98,13 @@ export async function updateBell(id: number, input: UpdateBellInput) {
 			throw new ServiceError("Bell for this lesson number already exists", 409);
 		}
 		throw error;
+	}
+}
+
+export async function deleteBell(id: number) {
+	try {
+		await prisma.bellSchedule.delete({ where: { id } });
+	} catch (error) {
+		throw toDeleteError(error, "Bell not found");
 	}
 }

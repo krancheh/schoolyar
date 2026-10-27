@@ -1,6 +1,6 @@
 import { EmployeeRole, Prisma } from "@prisma/client";
 import { prisma } from "@shared/lib/db";
-import { ServiceError } from "@shared/lib/api";
+import { ServiceError, toDeleteError } from "@shared/lib/api";
 
 export function listEmployees() {
 	return prisma.employee.findMany({ orderBy: { fullName: "asc" } });
@@ -86,5 +86,13 @@ export async function createEmployee(input: CreateEmployeeInput) {
 			throw new ServiceError("Employee with this email already exists", 409);
 		}
 		throw error;
+	}
+}
+
+export async function deleteEmployee(id: number) {
+	try {
+		await prisma.employee.delete({ where: { id } });
+	} catch (error) {
+		throw toDeleteError(error, "Employee not found");
 	}
 }

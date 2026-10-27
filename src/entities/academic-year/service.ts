@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@shared/lib/db";
-import { ServiceError, parseDate } from "@shared/lib/api";
+import { ServiceError, parseDate, toDeleteError } from "@shared/lib/api";
 
 export function listAcademicYears() {
 	return prisma.academicYear.findMany({
@@ -100,5 +100,13 @@ export async function createAcademicYear(input: CreateAcademicYearInput) {
 			);
 		}
 		throw error;
+	}
+}
+
+export async function deleteAcademicYear(id: number) {
+	try {
+		await prisma.academicYear.delete({ where: { id } });
+	} catch (error) {
+		throw toDeleteError(error, "Academic year not found");
 	}
 }

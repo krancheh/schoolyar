@@ -31,6 +31,7 @@ import { listSubjects } from "@entities/subject/service";
 import { listEmployees } from "@entities/employee/service";
 import { listBells } from "@entities/bell-schedule/service";
 import { CreateEntityButton, EditEntityButton, EntityField } from "@features/crud/EntityForm";
+import { DeleteEntityButton } from "@features/crud/DeleteEntityButton";
 
 export const metadata: Metadata = { title: "Расписание — Школьный портал" };
 
@@ -164,20 +165,27 @@ export default async function SchedulePage(props: { searchParams: Promise<Search
 
 	const editButton = (entry: DayScheduleEntry) =>
 		isManager && (
-			<EditEntityButton
-				title={`${entry.slot.class.name}, ${DAY_NAMES[entry.slot.dayOfWeek]}, урок ${entry.slot.lessonNumber}`}
-				fields={slotFields}
-				url={`/api/schedule/${entry.slot.id}`}
-				initial={{
-					termId: entry.slot.termId,
-					classId: entry.slot.classId,
-					subjectId: entry.slot.subjectId,
-					teacherId: entry.slot.teacherId,
-					dayOfWeek: entry.slot.dayOfWeek,
-					lessonNumber: entry.slot.lessonNumber,
-					room: entry.slot.room,
-				}}
-			/>
+			<Group gap={4} wrap="nowrap">
+				<EditEntityButton
+					title={`${entry.slot.class.name}, ${DAY_NAMES[entry.slot.dayOfWeek]}, урок ${entry.slot.lessonNumber}`}
+					fields={slotFields}
+					url={`/api/schedule/${entry.slot.id}`}
+					initial={{
+						termId: entry.slot.termId,
+						classId: entry.slot.classId,
+						subjectId: entry.slot.subjectId,
+						teacherId: entry.slot.teacherId,
+						dayOfWeek: entry.slot.dayOfWeek,
+						lessonNumber: entry.slot.lessonNumber,
+						room: entry.slot.room,
+					}}
+				/>
+				<DeleteEntityButton
+					name={`${entry.slot.class.name}, ${DAY_NAMES[entry.slot.dayOfWeek]}, урок ${entry.slot.lessonNumber}`}
+					url={`/api/schedule/${entry.slot.id}`}
+					description="Вместе с уроком расписания удалятся замены на него. Уроки журнала сохранятся."
+				/>
+			</Group>
 		);
 
 	// Номер урока + время по расписанию звонков, если оно заведено.

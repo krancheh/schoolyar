@@ -21,6 +21,7 @@ import { listUsers } from "@entities/user/service";
 import { listEmployees } from "@entities/employee/service";
 import { listStudents } from "@entities/student/service";
 import { CreateEntityButton, EntityField } from "@features/crud/EntityForm";
+import { DeleteEntityButton } from "@features/crud/DeleteEntityButton";
 
 export const metadata: Metadata = { title: "Пользователи — Школьный портал" };
 
@@ -104,6 +105,7 @@ export default async function UsersPage() {
 								<TableTh>ФИО</TableTh>
 								<TableTh>Привязка</TableTh>
 								<TableTh>Создана</TableTh>
+								<TableTh w={40} />
 							</TableTr>
 						</TableThead>
 						<TableTbody>
@@ -128,6 +130,15 @@ export default async function UsersPage() {
 										)}
 									</TableTd>
 									<TableTd>{formatDate(account.createdAt)}</TableTd>
+									<TableTd>
+										{account.id !== user.id && (
+											<DeleteEntityButton
+												name={account.login}
+												url={`/api/users/${account.id}`}
+												description="Пользователь потеряет доступ к системе. Сотрудник или ученик останутся без изменений."
+											/>
+										)}
+									</TableTd>
 								</TableTr>
 							))}
 						</TableTbody>

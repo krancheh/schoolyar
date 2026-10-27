@@ -18,6 +18,7 @@ import { formatDate, formatDateInput } from "@shared/lib/format";
 import { termLabel } from "@shared/lib/labels";
 import { listAcademicYears } from "@entities/academic-year/service";
 import { CreateEntityButton, EditEntityButton, EntityField } from "@features/crud/EntityForm";
+import { DeleteEntityButton } from "@features/crud/DeleteEntityButton";
 
 export const metadata: Metadata = {
 	title: "Периоды обучения — Школьный портал",
@@ -102,21 +103,28 @@ export default async function AcademicYearsPage() {
 															{formatDate(term.endDate)}
 														</Text>
 														{isManager && (
-															<EditEntityButton
-																title={`${termLabel(term)} (${year.name})`}
-																fields={termFields}
-																url={`/api/terms/${term.id}`}
-																initial={{
-																	type: term.type,
-																	number: term.number,
-																	startDate: formatDateInput(
-																		term.startDate,
-																	),
-																	endDate: formatDateInput(
-																		term.endDate,
-																	),
-																}}
-															/>
+															<Group gap={4} wrap="nowrap">
+																<EditEntityButton
+																	title={`${termLabel(term)} (${year.name})`}
+																	fields={termFields}
+																	url={`/api/terms/${term.id}`}
+																	initial={{
+																		type: term.type,
+																		number: term.number,
+																		startDate: formatDateInput(
+																			term.startDate,
+																		),
+																		endDate: formatDateInput(
+																			term.endDate,
+																		),
+																	}}
+																/>
+																<DeleteEntityButton
+																	name={`${termLabel(term)} (${year.name})`}
+																	url={`/api/terms/${term.id}`}
+																	description="Вместе с периодом удалятся расписание и итоговые оценки за него."
+																/>
+															</Group>
 														)}
 													</Group>
 												))}
@@ -126,16 +134,25 @@ export default async function AcademicYearsPage() {
 									{isManager && (
 										<TableTd>
 											<Stack gap={4} align="flex-start">
-												<EditEntityButton
-													title={`Учебный год ${year.name}`}
-													fields={yearFields}
-													url={`/api/academic-years/${year.id}`}
-													initial={{
-														name: year.name,
-														startDate: formatDateInput(year.startDate),
-														endDate: formatDateInput(year.endDate),
-													}}
-												/>
+												<Group gap={4} wrap="nowrap">
+													<EditEntityButton
+														title={`Учебный год ${year.name}`}
+														fields={yearFields}
+														url={`/api/academic-years/${year.id}`}
+														initial={{
+															name: year.name,
+															startDate: formatDateInput(
+																year.startDate,
+															),
+															endDate: formatDateInput(year.endDate),
+														}}
+													/>
+													<DeleteEntityButton
+														name={year.name}
+														url={`/api/academic-years/${year.id}`}
+														description="Вместе с годом удалятся его периоды и годовые оценки. Год, в котором есть классы, удалить нельзя."
+													/>
+												</Group>
 												<CreateEntityButton
 													title={`Новый период — ${year.name}`}
 													label="+ период"

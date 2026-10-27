@@ -18,6 +18,7 @@ import { MANAGER_ROLES, getAuthUser } from "@shared/lib/auth";
 import { EMPLOYEE_ROLE_LABELS } from "@shared/lib/labels";
 import { listEmployees } from "@entities/employee/service";
 import { CreateEntityButton, EditEntityButton, EntityField } from "@features/crud/EntityForm";
+import { DeleteEntityButton } from "@features/crud/DeleteEntityButton";
 
 export const metadata: Metadata = { title: "Сотрудники — Школьный портал" };
 
@@ -87,18 +88,25 @@ export default async function EmployeesPage() {
 									</TableTd>
 									{isManager && (
 										<TableTd>
-											<EditEntityButton
-												title={employee.fullName}
-												fields={editFields}
-												url={`/api/employees/${employee.id}`}
-												initial={{
-													fullName: employee.fullName,
-													role: employee.role,
-													email: employee.email,
-													phone: employee.phone,
-													isActive: employee.isActive,
-												}}
-											/>
+											<Group gap={4} wrap="nowrap">
+												<EditEntityButton
+													title={employee.fullName}
+													fields={editFields}
+													url={`/api/employees/${employee.id}`}
+													initial={{
+														fullName: employee.fullName,
+														role: employee.role,
+														email: employee.email,
+														phone: employee.phone,
+														isActive: employee.isActive,
+													}}
+												/>
+												<DeleteEntityButton
+													name={employee.fullName}
+													url={`/api/employees/${employee.id}`}
+													description="Нельзя удалить, если сотрудник указан в расписании, уроках или заменах. Учётная запись останется без привязки."
+												/>
+											</Group>
 										</TableTd>
 									)}
 								</TableTr>

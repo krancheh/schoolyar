@@ -1,6 +1,6 @@
 import { AttendanceStatus } from "@prisma/client";
 import { prisma } from "@shared/lib/db";
-import { ServiceError, isoDayOfWeek, parseDate } from "@shared/lib/api";
+import { ServiceError, isoDayOfWeek, parseDate, toDeleteError } from "@shared/lib/api";
 import { addDays, formatDateInput } from "@shared/lib/format";
 import { GRADE_OPTIONS } from "@shared/lib/grades";
 
@@ -750,4 +750,12 @@ export async function setAttendance(lessonId: number, records: AttendanceInput[]
 			}),
 		),
 	);
+}
+
+export async function deleteLesson(lessonId: number) {
+	try {
+		await prisma.lesson.delete({ where: { id: lessonId } });
+	} catch (error) {
+		throw toDeleteError(error, "Lesson not found");
+	}
 }

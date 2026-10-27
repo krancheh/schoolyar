@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@shared/lib/db";
-import { ServiceError, isoDayOfWeek } from "@shared/lib/api";
+import { ServiceError, isoDayOfWeek, toDeleteError } from "@shared/lib/api";
 
 const slotInclude = {
 	class: { select: { id: true, name: true } },
@@ -220,5 +220,13 @@ export async function createScheduleSlot(input: CreateScheduleSlotInput) {
 			}
 		}
 		throw error;
+	}
+}
+
+export async function deleteScheduleSlot(id: number) {
+	try {
+		await prisma.scheduleSlot.delete({ where: { id } });
+	} catch (error) {
+		throw toDeleteError(error, "Schedule slot not found");
 	}
 }

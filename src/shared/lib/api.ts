@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 
 export function jsonError(message: string, status = 400) {
@@ -23,6 +24,21 @@ export function serviceErrorResponse(error: unknown): NextResponse {
 		return jsonError(error.message, error.status);
 	}
 	throw error;
+}
+
+// Ошибка удаления: P2025 — записи нет (404), P2003 — на запись ссылается
+// таблица с RESTRICT-связью (409). Остальное пробрасывается как есть.
+export function toDeleteError(error: unknown, notFoundMessage: string): unknown {
+	if (error instanceof Prisma.PrismaClientKnownRequestError) {
+		if (error.code === "P2025") return new ServiceError(notFoundMessage, 404);
+		if (error.code === "P2003") {
+			return new ServiceError(
+				"Cannot delete: this record is referenced by other records",
+				409,
+			);
+		}
+	}
+	return error;
 }
 
 export async function parseBody<T>(request: Request): Promise<T | null> {

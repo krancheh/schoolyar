@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@shared/lib/db";
-import { ServiceError, isoDayOfWeek, parseDate } from "@shared/lib/api";
+import { ServiceError, isoDayOfWeek, parseDate, toDeleteError } from "@shared/lib/api";
 
 export function listSubstitutions(
 	filters: { from?: Date; to?: Date; teacherId?: number } = {}
@@ -154,5 +154,13 @@ export async function createSubstitution(input: CreateSubstitutionInput) {
 			}
 		}
 		throw error;
+	}
+}
+
+export async function deleteSubstitution(id: number) {
+	try {
+		await prisma.substitution.delete({ where: { id } });
+	} catch (error) {
+		throw toDeleteError(error, "Substitution not found");
 	}
 }

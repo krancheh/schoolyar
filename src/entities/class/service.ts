@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@shared/lib/db";
-import { ServiceError } from "@shared/lib/api";
+import { ServiceError, toDeleteError } from "@shared/lib/api";
 
 export function listClasses(filters: { academicYearId?: number } = {}) {
 	return prisma.class.findMany({
@@ -123,5 +123,13 @@ export async function createClass(input: CreateClassInput) {
 			);
 		}
 		throw error;
+	}
+}
+
+export async function deleteClass(id: number) {
+	try {
+		await prisma.class.delete({ where: { id } });
+	} catch (error) {
+		throw toDeleteError(error, "Class not found");
 	}
 }

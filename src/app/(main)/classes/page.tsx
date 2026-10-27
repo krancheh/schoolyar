@@ -18,6 +18,7 @@ import { listClasses } from "@entities/class/service";
 import { listAcademicYears } from "@entities/academic-year/service";
 import { listEmployees } from "@entities/employee/service";
 import { CreateEntityButton, EditEntityButton, EntityField } from "@features/crud/EntityForm";
+import { DeleteEntityButton } from "@features/crud/DeleteEntityButton";
 
 export const metadata: Metadata = { title: "Классы — Школьный портал" };
 
@@ -107,15 +108,22 @@ export default async function ClassesPage() {
 									<TableTd ta="center">{cls._count.students}</TableTd>
 									{isManager && (
 										<TableTd>
-											<EditEntityButton
-												title={`Класс ${cls.name}`}
-												fields={editFields}
-												url={`/api/classes/${cls.id}`}
-												initial={{
-													name: cls.name,
-													homeroomTeacherId: cls.homeroomTeacherId,
-												}}
-											/>
+											<Group gap={4} wrap="nowrap">
+												<EditEntityButton
+													title={`Класс ${cls.name}`}
+													fields={editFields}
+													url={`/api/classes/${cls.id}`}
+													initial={{
+														name: cls.name,
+														homeroomTeacherId: cls.homeroomTeacherId,
+													}}
+												/>
+												<DeleteEntityButton
+													name={cls.name}
+													url={`/api/classes/${cls.id}`}
+													description="Вместе с классом удалятся его расписание, уроки в журнале, оценки и посещаемость. Ученики останутся без класса."
+												/>
+											</Group>
 										</TableTd>
 									)}
 								</TableTr>

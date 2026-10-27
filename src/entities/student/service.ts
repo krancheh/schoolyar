@@ -1,5 +1,5 @@
 import { prisma } from "@shared/lib/db";
-import { ServiceError, parseDate } from "@shared/lib/api";
+import { ServiceError, parseDate, toDeleteError } from "@shared/lib/api";
 
 export function listStudents(filters: { classId?: number } = {}) {
 	return prisma.student.findMany({
@@ -78,4 +78,12 @@ export async function createStudent(input: CreateStudentInput) {
 			classId: input.classId,
 		},
 	});
+}
+
+export async function deleteStudent(id: number) {
+	try {
+		await prisma.student.delete({ where: { id } });
+	} catch (error) {
+		throw toDeleteError(error, "Student not found");
+	}
 }

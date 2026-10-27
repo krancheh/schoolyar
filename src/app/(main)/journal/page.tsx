@@ -38,6 +38,7 @@ import { listSubjects } from "@entities/subject/service";
 import { listEmployees } from "@entities/employee/service";
 import { listScheduleSlots } from "@entities/schedule/service";
 import { CreateEntityButton, EditEntityButton, EntityField } from "@features/crud/EntityForm";
+import { DeleteEntityButton } from "@features/crud/DeleteEntityButton";
 import { GradesButton } from "@features/journal/GradesButton";
 import { JournalFilters } from "@features/journal/JournalFilters";
 import { TermSelect } from "@features/journal/TermSelect";
@@ -652,15 +653,22 @@ export default async function JournalPage(props: { searchParams: Promise<SearchP
 															})}
 														/>
 														{lesson.id != null ? (
-															<EditEntityButton
-																title={`Урок ${formatDate(lesson.date)}`}
-																fields={editFields}
-																url={`/api/journal/${lesson.id}`}
-																initial={{
-																	topic: lesson.topic,
-																	homework: lesson.homework,
-																}}
-															/>
+															<Group gap={4} wrap="nowrap">
+																<EditEntityButton
+																	title={`Урок ${formatDate(lesson.date)}`}
+																	fields={editFields}
+																	url={`/api/journal/${lesson.id}`}
+																	initial={{
+																		topic: lesson.topic,
+																		homework: lesson.homework,
+																	}}
+																/>
+																<DeleteEntityButton
+																	name={`урок ${formatDate(lesson.date)}`}
+																	url={`/api/journal/${lesson.id}`}
+																	description="Вместе с уроком удалятся оценки и посещаемость за него."
+																/>
+															</Group>
 														) : (
 															<CreateEntityButton
 																title={`Урок ${formatDate(lesson.date)}`}

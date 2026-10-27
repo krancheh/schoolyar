@@ -18,6 +18,7 @@ import { listSubstitutions } from "@entities/substitution/service";
 import { listScheduleSlots } from "@entities/schedule/service";
 import { listEmployees } from "@entities/employee/service";
 import { CreateEntityButton, EditEntityButton, EntityField } from "@features/crud/EntityForm";
+import { DeleteEntityButton } from "@features/crud/DeleteEntityButton";
 
 export const metadata: Metadata = { title: "Замены — Школьный портал" };
 
@@ -105,17 +106,23 @@ export default async function SubstitutionsPage() {
 									<TableTd>{substitution.reason ?? "—"}</TableTd>
 									{isManager && (
 										<TableTd>
-											<EditEntityButton
-												title={`Замена ${formatDate(substitution.date)}`}
-												fields={editFields}
-												url={`/api/substitutions/${substitution.id}`}
-												initial={{
-													date: formatDateInput(substitution.date),
-													substituteTeacherId:
-														substitution.substituteTeacherId,
-													reason: substitution.reason,
-												}}
-											/>
+											<Group gap={4} wrap="nowrap">
+												<EditEntityButton
+													title={`Замена ${formatDate(substitution.date)}`}
+													fields={editFields}
+													url={`/api/substitutions/${substitution.id}`}
+													initial={{
+														date: formatDateInput(substitution.date),
+														substituteTeacherId:
+															substitution.substituteTeacherId,
+														reason: substitution.reason,
+													}}
+												/>
+												<DeleteEntityButton
+													name={`Замена ${formatDate(substitution.date)}`}
+													url={`/api/substitutions/${substitution.id}`}
+												/>
+											</Group>
 										</TableTd>
 									)}
 								</TableTr>

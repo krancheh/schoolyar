@@ -19,6 +19,7 @@ import { formatDate, formatDateInput } from "@shared/lib/format";
 import { listStudents } from "@entities/student/service";
 import { listClasses } from "@entities/class/service";
 import { CreateEntityButton, EditEntityButton, EntityField } from "@features/crud/EntityForm";
+import { DeleteEntityButton } from "@features/crud/DeleteEntityButton";
 
 export const metadata: Metadata = { title: "Ученики — Школьный портал" };
 
@@ -97,17 +98,26 @@ export default async function StudentsPage() {
 									</TableTd>
 									{isManager && (
 										<TableTd>
-											<EditEntityButton
-												title={student.fullName}
-												fields={editFields}
-												url={`/api/students/${student.id}`}
-												initial={{
-													fullName: student.fullName,
-													birthDate: formatDateInput(student.birthDate),
-													classId: student.classId,
-													isActive: student.isActive,
-												}}
-											/>
+											<Group gap={4} wrap="nowrap">
+												<EditEntityButton
+													title={student.fullName}
+													fields={editFields}
+													url={`/api/students/${student.id}`}
+													initial={{
+														fullName: student.fullName,
+														birthDate: formatDateInput(
+															student.birthDate,
+														),
+														classId: student.classId,
+														isActive: student.isActive,
+													}}
+												/>
+												<DeleteEntityButton
+													name={student.fullName}
+													url={`/api/students/${student.id}`}
+													description="Вместе с учеником удалятся его оценки, итоговые оценки и посещаемость. Учётная запись останется без привязки."
+												/>
+											</Group>
 										</TableTd>
 									)}
 								</TableTr>

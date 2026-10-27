@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@shared/lib/db";
-import { ServiceError } from "@shared/lib/api";
+import { ServiceError, toDeleteError } from "@shared/lib/api";
 
 export function listSubjects() {
 	return prisma.subject.findMany({ orderBy: { name: "asc" } });
@@ -40,5 +40,13 @@ export async function createSubject(input: { name?: string }) {
 			throw new ServiceError("Subject with this name already exists", 409);
 		}
 		throw error;
+	}
+}
+
+export async function deleteSubject(id: number) {
+	try {
+		await prisma.subject.delete({ where: { id } });
+	} catch (error) {
+		throw toDeleteError(error, "Subject not found");
 	}
 }

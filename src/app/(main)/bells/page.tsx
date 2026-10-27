@@ -19,6 +19,7 @@ import {
 	EditEntityButton,
 	EntityField,
 } from "@features/crud/EntityForm";
+import { DeleteEntityButton } from "@features/crud/DeleteEntityButton";
 
 export const metadata: Metadata = { title: "Звонки — Школьный портал" };
 
@@ -70,16 +71,22 @@ export default async function BellsPage() {
 									<TableTd>{bell.endTime}</TableTd>
 									{isManager && (
 										<TableTd>
-											<EditEntityButton
-												title={`Урок ${bell.lessonNumber}`}
-												fields={bellFields}
-												url={`/api/bells/${bell.id}`}
-												initial={{
-													lessonNumber: bell.lessonNumber,
-													startTime: bell.startTime,
-													endTime: bell.endTime,
-												}}
-											/>
+											<Group gap={4} wrap="nowrap">
+												<EditEntityButton
+													title={`Урок ${bell.lessonNumber}`}
+													fields={bellFields}
+													url={`/api/bells/${bell.id}`}
+													initial={{
+														lessonNumber: bell.lessonNumber,
+														startTime: bell.startTime,
+														endTime: bell.endTime,
+													}}
+												/>
+												<DeleteEntityButton
+													name={`урок ${bell.lessonNumber}`}
+													url={`/api/bells/${bell.id}`}
+												/>
+											</Group>
 										</TableTd>
 									)}
 								</TableTr>

@@ -1,6 +1,6 @@
 import { Prisma, TermType } from "@prisma/client";
 import { prisma } from "@shared/lib/db";
-import { ServiceError, parseDate } from "@shared/lib/api";
+import { ServiceError, parseDate, toDeleteError } from "@shared/lib/api";
 
 export function listTerms(filters: { academicYearId?: number } = {}) {
 	return prisma.term.findMany({
@@ -135,5 +135,13 @@ export async function createTerm(input: CreateTermInput) {
 			);
 		}
 		throw error;
+	}
+}
+
+export async function deleteTerm(id: number) {
+	try {
+		await prisma.term.delete({ where: { id } });
+	} catch (error) {
+		throw toDeleteError(error, "Term not found");
 	}
 }

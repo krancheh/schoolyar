@@ -16,6 +16,7 @@ import {
 import { MANAGER_ROLES, getAuthUser } from "@shared/lib/auth";
 import { listSubjects } from "@entities/subject/service";
 import { CreateEntityButton, EditEntityButton, EntityField } from "@features/crud/EntityForm";
+import { DeleteEntityButton } from "@features/crud/DeleteEntityButton";
 
 export const metadata: Metadata = { title: "Предметы — Школьный портал" };
 
@@ -59,12 +60,19 @@ export default async function SubjectsPage() {
 									<TableTd>{subject.name}</TableTd>
 									{isManager && (
 										<TableTd>
-											<EditEntityButton
-												title={subject.name}
-												fields={subjectFields}
-												url={`/api/subjects/${subject.id}`}
-												initial={{ name: subject.name }}
-											/>
+											<Group gap={4} wrap="nowrap">
+												<EditEntityButton
+													title={subject.name}
+													fields={subjectFields}
+													url={`/api/subjects/${subject.id}`}
+													initial={{ name: subject.name }}
+												/>
+												<DeleteEntityButton
+													name={subject.name}
+													url={`/api/subjects/${subject.id}`}
+													description="Нельзя удалить, если предмет используется в расписании или журнале."
+												/>
+											</Group>
 										</TableTd>
 									)}
 								</TableTr>
